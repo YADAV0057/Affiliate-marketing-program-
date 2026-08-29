@@ -161,12 +161,15 @@ async function handleLanding() {
     return;
   }
 
-  // A fresh magic-link click carries the token in the URL hash (parsed by
-  // supabase-js on load); a returning visitor with a still-valid session
-  // has none of that — show them a plain "already signed in" state instead
-  // of the "Confirming your email…" copy, which only makes sense for the
-  // former.
-  const isMagicLinkLanding = window.location.hash.includes("access_token");
+  // A fresh magic-link click carries either a PKCE `code` query param (the
+  // current flow — see config.js) or, under the old implicit flow, an
+  // access_token in the URL hash; supabase-js exchanges/parses either on
+  // load. A returning visitor with a still-valid session has neither —
+  // show them a plain "already signed in" state instead of the "Confirming
+  // your email…" copy, which only makes sense for a fresh landing.
+  const isMagicLinkLanding =
+    window.location.hash.includes("access_token") ||
+    new URLSearchParams(window.location.search).has("code");
   showPanel(isMagicLinkLanding ? "verifying" : "alreadySignedIn");
   const { error, isNew } = await ensureAffiliateApplication(
     document.getElementById("reqName").value.trim(),
