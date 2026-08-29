@@ -20,7 +20,7 @@
 
   <div id="msg" class="form-msg"></div>
 
-  <!-- Step 1: request the magic link -->
+  <!-- Step 1: request the magic link / code -->
   <form id="requestForm">
     <div class="field">
       <label for="reqName">Your name</label>
@@ -46,7 +46,7 @@
       <textarea id="reqNote" required rows="3" placeholder="e.g. instagram.com/yourhandle — I post outfit reels and would link products in my bio/stories"></textarea>
     </div>
     <button type="submit" class="btn" id="requestBtn" style="width:100%">Continue with email</button>
-    <p class="auth-note">No password needed. We'll email you a link — clicking it confirms your email and files your application in one step. You'll be able to generate links and see earnings once it's approved.</p>
+    <p class="auth-note">No password needed. We'll email you a 6-digit code — enter it below and your application is filed in one step. You'll be able to generate links and see earnings once it's approved.</p>
     <p class="auth-note">Already applied? <a href="login.html">Sign in</a> instead — no need to fill this out again.</p>
   </form>
 
@@ -58,9 +58,19 @@
     <a href="dashboard.html" class="btn secondary small">Go now</a>
   </div>
 
-  <!-- Step 2: shown after the link is sent, replaces the form -->
+  <!-- Step 2: shown after the code is sent, replaces the form. Code entry
+       is the primary path — it works from any app/browser since there's no
+       cross-browser handoff involved. The emailed link still works too, as
+       a fallback, for anyone who opens it in the same browser they applied
+       from. -->
   <div id="sentPanel" class="hidden">
     <p class="auth-note mb-lg" id="sentCopy"></p>
+    <div class="field">
+      <label for="otpCode">6-digit code from that email</label>
+      <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" />
+    </div>
+    <button type="button" class="btn" id="verifyCodeBtn" style="width:100%">Confirm code</button>
+    <p class="auth-note">Or tap the link in that same email instead — either one works.</p>
     <button type="button" class="btn secondary small" id="resendBtn">Use a different email</button>
   </div>
 
@@ -87,6 +97,11 @@ function showPanel(which) {
   document.getElementById("verifyingPanel").classList.toggle("hidden", which !== "verifying");
   document.getElementById("alreadySignedInPanel").classList.toggle("hidden", which !== "alreadySignedIn");
 }
+
+// Held between step 1 (request) and step 2 (confirm code) — plain JS
+// variable, not sessionStorage, since code entry happens on this same page
+// load with no redirect in between.
+let pendingEmail = "";
 
 document.getElementById("requestForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -116,13 +131,49 @@ document.getElementById("requestForm").addEventListener("submit", async (e) => {
   btn.textContent = "Continue with email";
 
   if (error) {
-    showMsg(error.message || "Could not send the link. Try again.", "error");
+    showMsg(error.message || "Could not send the code. Try again.", "error");
     return;
   }
 
+  pendingEmail = email;
+  document.getElementById("otpCode").value = "";
   document.getElementById("sentCopy").textContent =
-    `Check ${email} for a link to confirm and continue. It'll bring you right back here.`;
+    `Check ${email} for a 6-digit code. Enter it below to confirm and continue.`;
   showPanel("sent");
+});
+
+document.getElementById("verifyCodeBtn").addEventListener("click", async () => {
+  const token = document.getElementById("otpCode").value.trim();
+  if (!token) {
+    showMsg("Enter the 6-digit code from the email.", "error");
+    return;
+  }
+
+  const btn = document.getElementById("verifyCodeBtn");
+  btn.disabled = true;
+  btn.textContent = "Confirming…";
+  hideMsg();
+
+  // verifyOtp establishes the session directly in *this* browser tab from
+  // the typed code — no code_verifier, no cross-browser handoff, so it
+  // can't fail the way the link-based PKCE exchange did.
+  const { error } = await affiliatesClient.auth.verifyOtp({
+    email: pendingEmail,
+    token,
+    type: "email",
+  });
+
+  btn.disabled = false;
+  btn.textContent = "Confirm code";
+
+  if (error) {
+    showMsg(error.message || "That code didn't work. Check it and try again.", "error");
+    return;
+  }
+
+  // Same landing logic used for a magic-link click — it only cares that a
+  // session now exists, not how it got here.
+  handleLanding();
 });
 
 document.getElementById("resendBtn").addEventListener("click", () => {
@@ -143,31 +194,40 @@ restorePromoteIntentFromUrl();
 // the code successfully (visible server-side) but the browser never turns
 // it into a session, so the person silently lands back on the empty form.
 // Must run — and finish — before handleLanding() checks getSession().
+//
+// This is now purely a fallback path for anyone who taps the emailed link
+// in the same browser they requested it from. When it fails (link opened
+// in a different browser/app — the common mobile case), we no longer
+// leave the person stuck: we just drop them back on the request form to
+// use the code instead, rather than surfacing a dead-end error with no
+// next step.
 async function exchangePkceCodeIfPresent() {
   const params = new URLSearchParams(window.location.search);
   if (!params.has("code")) return;
 
   const { error } = await affiliatesClient.auth.exchangeCodeForSession(window.location.href);
-  if (error) {
-    // Most common real-world cause: the link was opened in a different
-    // browser/app than the one that requested it (e.g. an email app's
-    // built-in viewer) — the code_verifier PKCE needs only exists in the
-    // browser that started the flow.
-    showMsg(
-      "Couldn't confirm that link: " + error.message +
-        ". Make sure you open the email link in the same browser you applied from.",
-      "error",
-    );
-  }
 
-  // Drop ?code= from the URL so a refresh/back-nav doesn't try to redeem
-  // the same (now-used) code again.
   params.delete("code");
   const cleanUrl =
     window.location.pathname +
     (params.toString() ? "?" + params.toString() : "") +
     window.location.hash;
   window.history.replaceState({}, document.title, cleanUrl);
+
+  if (error) {
+    // Most common real-world cause: the link was opened in a different
+    // browser/app than the one that requested it (e.g. an email app's
+    // built-in viewer) — the code_verifier for PKCE only exists in the
+    // browser that started the flow. Send them back to request a code
+    // instead, rather than leaving a scary error with no way forward.
+    showPanel("form");
+    showMsg(
+      "That confirmation link didn't work in this browser. Please request a new email and use the 6-digit code instead — it works from any app.",
+      "error",
+    );
+    return false;
+  }
+  return true;
 }
 
 // Guards against handleLanding() running twice concurrently. It's invoked
@@ -198,13 +258,14 @@ async function handleLanding() {
   // A fresh magic-link click carries either a PKCE `code` query param (the
   // current flow — see config.js) or, under the old implicit flow, an
   // access_token in the URL hash; supabase-js exchanges/parses either on
-  // load. A returning visitor with a still-valid session has neither —
-  // show them a plain "already signed in" state instead of the "Confirming
-  // your email…" copy, which only makes sense for a fresh landing.
+  // load. Code entry (the primary path now) has neither — it's really the
+  // same "just confirmed" state as a fresh link click, so treat it the
+  // same way rather than as "already signed in from an earlier visit".
   const isMagicLinkLanding =
     window.location.hash.includes("access_token") ||
     new URLSearchParams(window.location.search).has("code");
-  showPanel(isMagicLinkLanding ? "verifying" : "alreadySignedIn");
+  const isFreshCodeConfirm = !document.getElementById("sentPanel").classList.contains("hidden");
+  showPanel(isMagicLinkLanding || isFreshCodeConfirm ? "verifying" : "alreadySignedIn");
   const { error, isNew } = await ensureAffiliateApplication(
     document.getElementById("reqName").value.trim(),
     document.getElementById("reqChannel").value,
@@ -233,7 +294,8 @@ affiliatesClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") handleLanding();
 });
 (async () => {
-  await exchangePkceCodeIfPresent();
+  const ok = await exchangePkceCodeIfPresent();
+  if (ok === false) return; // already routed to the form with an explanation above
   handleLanding();
 })();
 </script>
