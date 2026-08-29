@@ -33,11 +33,10 @@
     <p class="auth-note">New here? <a href="auth.html">Apply to become a partner</a> instead.</p>
   </form>
 
-  <!-- Step 2: shown after the code is sent, replaces the form. Code entry
-       is the primary path — it works from any app/browser since there's no
-       cross-browser handoff involved. The emailed link still works too, as
-       a fallback, for anyone who opens it in the same browser they signed
-       in from. -->
+  <!-- Step 2: shown after the code is sent, replaces the form. The email
+       contains only the code now (no link) — mail apps prefetch/scan
+       links, which was silently burning the shared one-time token before
+       the person ever typed the code in. -->
   <div id="sentPanel" class="hidden">
     <p class="auth-note mb-lg" id="sentCopy"></p>
     <div class="field">
@@ -45,17 +44,15 @@
       <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" />
     </div>
     <button type="button" class="btn" id="verifyCodeBtn" style="width:100%">Confirm code</button>
-    <p class="auth-note">Or tap the link in that same email instead — either one works.</p>
     <button type="button" class="btn secondary small" id="resendBtn">Use a different email</button>
   </div>
 
-  <!-- Shown briefly while a magic-link landing is being processed -->
+  <!-- Shown briefly while a fresh code confirmation is being processed -->
   <div id="verifyingPanel" class="hidden">
     <p class="auth-note mb-lg">Signing you in…</p>
   </div>
 
-  <!-- Shown when a session is already found on load (returning visitor,
-       no magic-link token in the URL this time) -->
+  <!-- Shown when a session is already found on load (returning visitor) -->
   <div id="alreadySignedInPanel" class="hidden">
     <p class="auth-note mb-lg">You're already signed in — taking you to your dashboard…</p>
     <a href="dashboard.html" class="btn secondary small">Go now</a>
@@ -85,6 +82,11 @@ function showPanel(which) {
 // load with no redirect in between.
 let pendingEmail = "";
 
+// Set right before a code confirmation triggers handleLanding(), so it can
+// tell "just verified this code" apart from "had a session already on
+// load" — the two need different panels (verifying vs. already-signed-in).
+let justVerified = false;
+
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = document.getElementById("loginBtn");
@@ -102,7 +104,6 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     email,
     options: {
       shouldCreateUser: false,
-      emailRedirectTo: buildAuthRedirectUrl(),
     },
   });
 
@@ -139,9 +140,6 @@ document.getElementById("verifyCodeBtn").addEventListener("click", async () => {
   btn.textContent = "Confirming…";
   hideMsg();
 
-  // verifyOtp establishes the session directly in *this* browser tab from
-  // the typed code — no code_verifier, no cross-browser handoff, so it
-  // can't fail the way the link-based PKCE exchange did.
   const { error } = await affiliatesClient.auth.verifyOtp({
     email: pendingEmail,
     token,
@@ -156,6 +154,7 @@ document.getElementById("verifyCodeBtn").addEventListener("click", async () => {
     return;
   }
 
+  justVerified = true;
   handleLanding();
 });
 
@@ -163,39 +162,6 @@ document.getElementById("resendBtn").addEventListener("click", () => {
   hideMsg();
   showPanel("form");
 });
-
-restorePromoteIntentFromUrl();
-
-// See auth.html for the full explanation: PKCE returns a ?code= param that
-// supabase-js does NOT redeem automatically, unlike the old implicit-flow
-// hash tokens. This is now purely a fallback path for anyone who taps the
-// emailed link in the same browser they requested it from — when it fails
-// (link opened in a different browser/app, the common mobile case), we
-// send them back to the form to use the code instead rather than leaving a
-// dead-end error.
-async function exchangePkceCodeIfPresent() {
-  const params = new URLSearchParams(window.location.search);
-  if (!params.has("code")) return;
-
-  const { error } = await affiliatesClient.auth.exchangeCodeForSession(window.location.href);
-
-  params.delete("code");
-  const cleanUrl =
-    window.location.pathname +
-    (params.toString() ? "?" + params.toString() : "") +
-    window.location.hash;
-  window.history.replaceState({}, document.title, cleanUrl);
-
-  if (error) {
-    showPanel("form");
-    showMsg(
-      "That sign-in link didn't work in this browser. Please request a new email and use the 6-digit code instead — it works from any app.",
-      "error",
-    );
-    return false;
-  }
-  return true;
-}
 
 let landingInFlight = false;
 
@@ -209,20 +175,12 @@ async function handleLanding() {
 
   if (!session) {
     landingInFlight = false;
+    justVerified = false;
     showPanel("form");
     return;
   }
 
-  // See auth.html for why both forms are checked — PKCE (?code=) and the
-  // old implicit-flow hash are both "fresh link click" landings. Code
-  // entry (the primary path now) has neither, but is just as much a fresh
-  // confirmation, so it gets the same "verifying" treatment rather than
-  // "already signed in from an earlier visit".
-  const isMagicLinkLanding =
-    window.location.hash.includes("access_token") ||
-    new URLSearchParams(window.location.search).has("code");
-  const isFreshCodeConfirm = !document.getElementById("sentPanel").classList.contains("hidden");
-  showPanel(isMagicLinkLanding || isFreshCodeConfirm ? "verifying" : "alreadySignedIn");
+  showPanel(justVerified ? "verifying" : "alreadySignedIn");
 
   // No name/channel/note fields exist on this page — ensureAffiliateApplication
   // falls back to user_metadata (set at original signup) or the email's
@@ -232,6 +190,7 @@ async function handleLanding() {
   const { error, isNew } = await ensureAffiliateApplication();
   if (error) {
     landingInFlight = false;
+    justVerified = false;
     showPanel("form");
     showMsg("Signed in, but couldn't load your application: " + error, "error");
     return;
@@ -245,11 +204,7 @@ async function handleLanding() {
 affiliatesClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") handleLanding();
 });
-(async () => {
-  const ok = await exchangePkceCodeIfPresent();
-  if (ok === false) return;
-  handleLanding();
-})();
+handleLanding();
 </script>
 
 </body>
