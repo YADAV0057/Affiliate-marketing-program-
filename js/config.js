@@ -20,11 +20,21 @@ const STORE_SLUG = "moodstore";
 // until they explicitly sign out, delete their account, or clear their
 // browser's site data. No password is needed for this — that's a property
 // of session storage, not of how the person originally signed in.
+//
+// flowType: 'pkce' — NOT a default. The magic-link email points straight at
+// Supabase's own /verify endpoint; with the old implicit flow, anything
+// that opens that link before the person does (Gmail/Outlook link-scanners,
+// antivirus, chat-app link previews) silently burns the one-time token,
+// and the real click then fails with "Email link is invalid or has
+// expired" — which is exactly what was blocking signups. PKCE ties the
+// code exchange to a verifier stored only in the browser that requested
+// it, so a prefetch visit can't consume it out from under the real user.
 const AUTH_CLIENT_OPTIONS = {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    flowType: "pkce",
     storage: window.localStorage,
   },
 };
@@ -440,4 +450,4 @@ async function screenNewApplication() {
 
 function formatInr(amount) {
   return "₹" + Number(amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-}
+          }
