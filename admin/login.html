@@ -3,80 +3,161 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Admin sign in — Mood Store Partners</title>
-<link rel="stylesheet" href="../css/portal.css" />
+<title>Sign in — Mood Store Partners</title>
+<link rel="stylesheet" href="css/portal.css" />
 </head>
 <body>
 
 <header class="portal-header">
-  <div class="portal-brand">Mood Store <small>Partners Admin</small></div>
+  <div class="portal-brand">Mood Store <small>Partners</small></div>
 </header>
 <div class="torn-divider"></div>
 
 <main class="auth-shell">
-  <p class="section-eyebrow">Admin</p>
-  <h1 class="section-title mt-0">Sign in</h1>
+  <a href="index.html" class="back-link">← Browse the catalogue</a>
+  <p class="section-eyebrow">Creator partner program</p>
+  <h1 class="section-title mt-0" id="authHeading">Welcome back</h1>
 
   <div id="msg" class="form-msg"></div>
 
+  <!-- Step 1: request the magic link — email only, nothing else. Existing
+       partners already have a name/channel/note on file; there's nothing
+       to re-collect here. -->
   <form id="loginForm">
     <div class="field">
-      <label for="email">Email</label>
-      <input type="email" id="email" required autocomplete="username" />
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" required autocomplete="email" />
     </div>
-    <div class="field">
-      <label for="password">Password</label>
-      <input type="password" id="password" required autocomplete="current-password" />
-    </div>
-    <button type="submit" class="btn" id="loginBtn" style="width:100%">Sign in</button>
-    <p class="auth-note">Admin access is invite-only. If you don't have an account yet, one needs to be created directly in Supabase (Authentication → Users) and added to admin_users.</p>
+    <button type="submit" class="btn" id="loginBtn" style="width:100%">Send sign-in link</button>
+    <p class="auth-note">No password needed. We'll email you a link — clicking it signs you straight in.</p>
+    <p class="auth-note">New here? <a href="auth.html">Apply to become a partner</a> instead.</p>
   </form>
+
+  <!-- Step 2: shown after the link is sent, replaces the form -->
+  <div id="sentPanel" class="hidden">
+    <p class="auth-note mb-lg" id="sentCopy"></p>
+    <button type="button" class="btn secondary small" id="resendBtn">Use a different email</button>
+  </div>
+
+  <!-- Shown briefly while a magic-link landing is being processed -->
+  <div id="verifyingPanel" class="hidden">
+    <p class="auth-note mb-lg">Signing you in…</p>
+  </div>
+
+  <!-- Shown when a session is already found on load (returning visitor,
+       no magic-link token in the URL this time) -->
+  <div id="alreadySignedInPanel" class="hidden">
+    <p class="auth-note mb-lg">You're already signed in — taking you to your dashboard…</p>
+    <a href="dashboard.html" class="btn secondary small">Go now</a>
+  </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="../js/config.js"></script>
+<script src="js/config.js"></script>
 <script>
-if (new URLSearchParams(window.location.search).get("denied")) {
-  document.getElementById("msg").textContent = "That account doesn't have admin access.";
-  document.getElementById("msg").className = "form-msg error";
+function showMsg(text, type) {
+  const el = document.getElementById("msg");
+  el.textContent = text;
+  el.className = "form-msg " + type;
+}
+function hideMsg() {
+  document.getElementById("msg").className = "form-msg";
+}
+function showPanel(which) {
+  document.getElementById("loginForm").classList.toggle("hidden", which !== "form");
+  document.getElementById("sentPanel").classList.toggle("hidden", which !== "sent");
+  document.getElementById("verifyingPanel").classList.toggle("hidden", which !== "verifying");
+  document.getElementById("alreadySignedInPanel").classList.toggle("hidden", which !== "alreadySignedIn");
 }
 
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = document.getElementById("loginBtn");
   btn.disabled = true;
-  btn.textContent = "Signing in…";
+  btn.textContent = "Sending…";
+  hideMsg();
 
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
+  const email = document.getElementById("loginEmail").value.trim();
 
-  const { data, error } = await affiliatesClient.auth.signInWithPassword({ email, password });
+  // shouldCreateUser: false — this is sign-in only. A typo'd or
+  // never-applied email should surface as "no account found", not
+  // silently create a blank affiliate row with no name/channel/note
+  // (which is exactly the shortcut that made the old combined form messy).
+  const { error } = await affiliatesClient.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: false,
+      emailRedirectTo: buildAuthRedirectUrl(),
+    },
+  });
 
-  if (error || !data.session) {
-    btn.disabled = false;
-    btn.textContent = "Sign in";
-    document.getElementById("msg").textContent = error?.message || "Could not sign in.";
-    document.getElementById("msg").className = "form-msg error";
+  btn.disabled = false;
+  btn.textContent = "Send sign-in link";
+
+  if (error) {
+    const notFound = /user not found|signups not allowed/i.test(error.message || "");
+    showMsg(
+      notFound
+        ? "We couldn't find an account for that email. Use \"Apply to become a partner\" below if you're new."
+        : (error.message || "Could not send the link. Try again."),
+      "error",
+    );
     return;
   }
 
-  const { data: adminRow } = await affiliatesClient
-    .from("admin_users")
-    .select("user_id")
-    .eq("user_id", data.session.user.id)
-    .maybeSingle();
-
-  if (!adminRow) {
-    await affiliatesClient.auth.signOut();
-    btn.disabled = false;
-    btn.textContent = "Sign in";
-    document.getElementById("msg").textContent = "That account doesn't have admin access.";
-    document.getElementById("msg").className = "form-msg error";
-    return;
-  }
-
-  window.location.href = "applications.html";
+  document.getElementById("sentCopy").textContent =
+    `Check ${email} for a link to sign in. It'll bring you right back here.`;
+  showPanel("sent");
 });
+
+document.getElementById("resendBtn").addEventListener("click", () => {
+  hideMsg();
+  showPanel("form");
+});
+
+restorePromoteIntentFromUrl();
+
+let landingInFlight = false;
+
+async function handleLanding() {
+  if (landingInFlight) return;
+  landingInFlight = true;
+
+  const {
+    data: { session },
+  } = await affiliatesClient.auth.getSession();
+
+  if (!session) {
+    landingInFlight = false;
+    showPanel("form");
+    return;
+  }
+
+  const isMagicLinkLanding = window.location.hash.includes("access_token");
+  showPanel(isMagicLinkLanding ? "verifying" : "alreadySignedIn");
+
+  // No name/channel/note fields exist on this page — ensureAffiliateApplication
+  // falls back to user_metadata (set at original signup) or the email's
+  // local part if somehow neither exists. isNew should always be false
+  // here in practice (signInWithOtp above uses shouldCreateUser: false),
+  // but the shared helper is idempotent either way.
+  const { error, isNew } = await ensureAffiliateApplication();
+  if (error) {
+    landingInFlight = false;
+    showPanel("form");
+    showMsg("Signed in, but couldn't load your application: " + error, "error");
+    return;
+  }
+  if (isNew) {
+    await screenNewApplication();
+  }
+  await postAuthRedirect();
+}
+
+affiliatesClient.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_IN") handleLanding();
+});
+handleLanding();
 </script>
 
 </body>
