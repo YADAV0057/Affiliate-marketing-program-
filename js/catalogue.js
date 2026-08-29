@@ -1,12 +1,16 @@
 async function loadCatalogue() {
   // Adjust the nav link depending on whether a session already exists —
   // doesn't gate anything, purely cosmetic, so a failed check is harmless.
+  // Default href (set in index.html too, but restated here defensively)
+  // is auth.html for a signed-out visitor; only overridden to Dashboard
+  // below when a session is actually found.
+  const navLink = document.getElementById("authNavLink");
+  navLink.href = "login.html";
   try {
     const {
       data: { session },
     } = await affiliatesClient.auth.getSession();
     if (session) {
-      const navLink = document.getElementById("authNavLink");
       navLink.textContent = "Dashboard";
       navLink.href = "dashboard.html";
     }
