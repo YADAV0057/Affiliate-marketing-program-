@@ -198,6 +198,79 @@ function consumePromoteIntent() {
   return slug;
 }
 
+// ---------- Phase 4b: email-OTP signup/apply ----------
+// sessionStorage doesn't survive the magic-link hop when the link is opened
+// in a different tab/browser context than where it was requested (e.g. an
+// email app's in-app browser). As a fallback, the intended product slug is
+// also carried as a ?promote= query param on the redirect URL itself; this
+// restores it into sessionStorage on landing so postAuthRedirect/links.html
+// still work even when sessionStorage didn't carry over.
+function restorePromoteIntentFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get("promote");
+  if (slug && !sessionStorage.getItem("promoteIntentSlug")) {
+    sessionStorage.setItem("promoteIntentSlug", slug);
+  }
+}
+
+// Builds the emailRedirectTo URL for signInWithOtp: back to auth.html on
+// this same deployment, carrying the promote-intent slug (if any) as a
+// query param so it survives even if sessionStorage doesn't.
+function buildAuthRedirectUrl() {
+  const url = new URL("auth.html", window.location.origin + window.location.pathname.replace(/[^/]+$/, ""));
+  const intentSlug = sessionStorage.getItem("promoteIntentSlug");
+  if (intentSlug) url.searchParams.set("promote", intentSlug);
+  return url.toString();
+}
+
+// Ensures a signed-in user has an affiliate application row. Called after
+// any successful email-OTP verification (fresh magic-link landing, or a
+// session that already existed). Creating the account IS applying, so this
+// always inserts a 'pending' row if one doesn't exist yet — never blocks on
+// a missing name (falls back to the email's local part) so a returning
+// verify-only session can't get stuck.
+async function ensureAffiliateApplication(fallbackName) {
+  const {
+    data: { session },
+  } = await affiliatesClient.auth.getSession();
+  if (!session) return { affiliate: null, error: "no_session" };
+
+  const { data: existing } = await affiliatesClient
+    .from("affiliates")
+    .select("id, status")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (existing) return { affiliate: existing, error: null };
+
+  const name =
+    session.user.user_metadata?.name ||
+    fallbackName ||
+    (session.user.email || "").split("@")[0];
+
+  const { data: inserted, error } = await affiliatesClient
+    .from("affiliates")
+    .insert({ user_id: session.user.id, name, email: session.user.email })
+    .select("id, status")
+    .single();
+
+  if (error) {
+    // Duplicate just means another tab/click already created it — treat as
+    // success and move on rather than surfacing an error.
+    if (error.message && error.message.includes("duplicate")) {
+      const { data: raceRow } = await affiliatesClient
+        .from("affiliates")
+        .select("id, status")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      return { affiliate: raceRow, error: null };
+    }
+    return { affiliate: null, error: error.message };
+  }
+
+  return { affiliate: inserted, error: null };
+}
+
 function formatInr(amount) {
   return "₹" + Number(amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 }
