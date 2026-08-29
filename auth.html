@@ -47,7 +47,16 @@
     </div>
     <button type="submit" class="btn" id="requestBtn" style="width:100%">Continue with email</button>
     <p class="auth-note">No password needed. We'll email you a link — clicking it confirms your email and files your application in one step. You'll be able to generate links and see earnings once it's approved.</p>
+    <p class="auth-note">Already applied? <a href="login.html">Sign in</a> instead — no need to fill this out again.</p>
   </form>
+
+  <!-- Shown instead of the form when a session is already found on load,
+       so a returning visitor sees why the page is redirecting instead of
+       it happening silently. -->
+  <div id="alreadySignedInPanel" class="hidden">
+    <p class="auth-note mb-lg">You're already signed in — taking you to your dashboard…</p>
+    <a href="dashboard.html" class="btn secondary small">Go now</a>
+  </div>
 
   <!-- Step 2: shown after the link is sent, replaces the form -->
   <div id="sentPanel" class="hidden">
@@ -76,6 +85,7 @@ function showPanel(which) {
   document.getElementById("requestForm").classList.toggle("hidden", which !== "form");
   document.getElementById("sentPanel").classList.toggle("hidden", which !== "sent");
   document.getElementById("verifyingPanel").classList.toggle("hidden", which !== "verifying");
+  document.getElementById("alreadySignedInPanel").classList.toggle("hidden", which !== "alreadySignedIn");
 }
 
 document.getElementById("requestForm").addEventListener("submit", async (e) => {
@@ -151,7 +161,13 @@ async function handleLanding() {
     return;
   }
 
-  showPanel("verifying");
+  // A fresh magic-link click carries the token in the URL hash (parsed by
+  // supabase-js on load); a returning visitor with a still-valid session
+  // has none of that — show them a plain "already signed in" state instead
+  // of the "Confirming your email…" copy, which only makes sense for the
+  // former.
+  const isMagicLinkLanding = window.location.hash.includes("access_token");
+  showPanel(isMagicLinkLanding ? "verifying" : "alreadySignedIn");
   const { error, isNew } = await ensureAffiliateApplication(
     document.getElementById("reqName").value.trim(),
     document.getElementById("reqChannel").value,
