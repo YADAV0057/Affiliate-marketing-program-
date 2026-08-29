@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mood Store — Affiliate Portal</title>
+<title>Mood Store — Partners</title>
 <link rel="stylesheet" href="css/portal.css" />
 </head>
 <body>
@@ -15,147 +15,222 @@
 
 <main class="auth-shell">
   <a href="index.html" class="back-link">← Browse the catalogue</a>
-  <p class="section-eyebrow">Creator partner program</p>
-  <h1 class="section-title mt-0" id="authHeading">Promote what you love. Earn on every sale.</h1>
 
-  <div id="msg" class="form-msg"></div>
+  <!-- ===================== Step 1: start ===================== -->
+  <div id="startStep" class="auth-step">
+    <p class="section-eyebrow">Creator partner program</p>
+    <h1 class="section-title mt-0">Promote what you love. Earn on every sale.</h1>
+    <p class="auth-note mb-lg">One email, one code — whether you're applying for the first time or coming back, we'll take you to the right place.</p>
 
-  <!-- Step 1: request the code -->
-  <form id="requestForm">
-    <button type="button" class="btn secondary" id="googleBtn" style="width:100%;margin-bottom:16px;">Continue with Google</button>
-    <p class="auth-note" style="text-align:center;margin-bottom:16px;">or apply with email</p>
-    <div class="field">
-      <label for="reqName">Your name</label>
-      <input type="text" id="reqName" required autocomplete="name" />
-    </div>
-    <div class="field">
-      <label for="reqEmail">Email</label>
-      <input type="email" id="reqEmail" required autocomplete="email" />
-    </div>
-    <div class="field">
-      <label for="reqChannel">Where will you promote us?</label>
-      <select id="reqChannel" required>
-        <option value="" disabled selected>Choose one</option>
-        <option value="Instagram">Instagram</option>
-        <option value="YouTube">YouTube</option>
-        <option value="Blog / website">Blog / website</option>
-        <option value="WhatsApp / Telegram group">WhatsApp / Telegram group</option>
-        <option value="Other">Other</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="reqNote">Your handle/site, and how you plan to promote us</label>
-      <textarea id="reqNote" required rows="3" placeholder="e.g. instagram.com/yourhandle — I post outfit reels and would link products in my bio/stories"></textarea>
-    </div>
-    <button type="submit" class="btn" id="requestBtn" style="width:100%">Continue with email</button>
-    <p class="auth-note">No password needed. We'll email you an 8-digit code — enter it below and your application is filed in one step. You'll be able to generate links and see earnings once it's approved.</p>
-    <p class="auth-note">Already applied? <a href="login.html">Sign in</a> instead — no need to fill this out again.</p>
-  </form>
+    <div id="msg" class="form-msg"></div>
 
-  <!-- Shown instead of the form when a session is already found on load,
-       so a returning visitor sees why the page is redirecting instead of
-       it happening silently. -->
-  <div id="alreadySignedInPanel" class="hidden">
+    <button type="button" class="btn-google" id="googleBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+        <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.85.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18Z"/>
+        <path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33Z"/>
+        <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.59-2.59C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <div class="divider-row">or with email</div>
+
+    <form id="startForm">
+      <div class="field">
+        <label for="startEmail">Email</label>
+        <input type="email" id="startEmail" required autocomplete="email" placeholder="you@example.com" />
+      </div>
+      <button type="submit" class="btn" id="startBtn" style="width:100%">Send code</button>
+      <p class="auth-note">No password, ever. We'll email an 8-digit code — new here or coming back, it works the same way.</p>
+    </form>
+  </div>
+
+  <!-- ===================== Step 2: code (Partner Pass) ===================== -->
+  <div id="codeStep" class="auth-step hidden">
+    <p class="section-eyebrow">Check your inbox</p>
+    <h1 class="section-title mt-0">Enter your code</h1>
+
+    <div id="codeMsg" class="form-msg"></div>
+
+    <div class="pass-card">
+      <div class="pass-eyebrow">
+        <span>Partner pass</span>
+        <span class="pass-email" id="codeEmailLabel"></span>
+      </div>
+
+      <div class="otp-row" id="otpRow" role="group" aria-label="8-digit code">
+        <input class="otp-box" inputmode="numeric" maxlength="1" autocomplete="one-time-code" data-idx="0" aria-label="Digit 1 of 8" />
+        <input class="otp-box" inputmode="numeric" maxlength="1" data-idx="1" aria-label="Digit 2 of 8" />
+        <input class="otp-box" inputmode="numeric" maxlength="1" data-idx="2" aria-label="Digit 3 of 8" />
+        <input class="otp-box" inputmode="numeric" maxlength="1" data-idx="3" aria-label="Digit 4 of 8" />
+        <input class="otp-box" inputmode="numeric" maxlength="1" data-idx="4" aria-label="Digit 5 of 8" />
+        <input class="otp-box" inputmode="numeric" maxlength="1" data-idx="5" aria-label="Digit 6 of 8" />
+        <input class="otp-box" inputmode="numeric" maxlength="1" data-idx="6" aria-label="Digit 7 of 8" />
+        <input class="otp-box" inputmode="numeric" maxlength="1" data-idx="7" aria-label="Digit 8 of 8" />
+      </div>
+
+      <div class="pass-perforation"></div>
+
+      <div class="pass-stamp-row">
+        <div class="pass-stamp" id="passStamp" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <button type="button" class="btn" id="verifyCodeBtn" style="flex:1">Confirm code</button>
+      </div>
+    </div>
+
+    <button type="button" class="btn secondary small" id="changeEmailBtn">Use a different email</button>
+  </div>
+
+  <!-- ===================== Step 3: profile (new partners only) ===================== -->
+  <div id="profileStep" class="auth-step hidden">
+    <p class="section-eyebrow">Almost there</p>
+    <h1 class="section-title mt-0">Tell us where you'll promote us</h1>
+    <p class="auth-note mb-lg">You're verified — this is the last step before your application is reviewed.</p>
+
+    <div id="profileMsg" class="form-msg"></div>
+
+    <form id="profileForm">
+      <div class="field">
+        <label for="profName">Your name</label>
+        <input type="text" id="profName" required autocomplete="name" />
+      </div>
+      <div class="field">
+        <label for="profChannel">Where will you promote us?</label>
+        <select id="profChannel" required>
+          <option value="" disabled selected>Choose one</option>
+          <option value="Instagram">Instagram</option>
+          <option value="YouTube">YouTube</option>
+          <option value="Blog / website">Blog / website</option>
+          <option value="WhatsApp / Telegram group">WhatsApp / Telegram group</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="profNote">Your handle or link, and how you plan to promote us</label>
+        <textarea id="profNote" required rows="3" placeholder="e.g. instagram.com/yourhandle — I post outfit reels and would link products in my bio/stories"></textarea>
+      </div>
+      <button type="submit" class="btn" id="profileBtn" style="width:100%">Submit application</button>
+    </form>
+  </div>
+
+  <!-- ===================== Transient states ===================== -->
+  <div id="verifyingPanel" class="auth-step hidden">
+    <p class="auth-note mb-lg">Reviewing your application…</p>
+  </div>
+
+  <div id="alreadySignedInPanel" class="auth-step hidden">
     <p class="auth-note mb-lg">You're already signed in — taking you to your dashboard…</p>
     <a href="dashboard.html" class="btn secondary small">Go now</a>
-  </div>
-
-  <!-- Step 2: shown after the code is sent, replaces the form. The email
-       contains only the code now (no link) — mail apps prefetch/scan
-       links, which was silently burning the shared one-time token before
-       the person ever typed the code in. -->
-  <div id="sentPanel" class="hidden">
-    <p class="auth-note mb-lg" id="sentCopy"></p>
-    <div class="field">
-      <label for="otpCode">8-digit code from that email</label>
-      <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="12345678" />
-    </div>
-    <button type="button" class="btn" id="verifyCodeBtn" style="width:100%">Confirm code</button>
-    <button type="button" class="btn secondary small" id="resendBtn">Use a different email</button>
-  </div>
-
-  <!-- Shown briefly while a fresh code confirmation is being processed -->
-  <div id="verifyingPanel" class="hidden">
-    <p class="auth-note mb-lg">Confirming your email…</p>
   </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script>
-function showMsg(text, type) {
-  const el = document.getElementById("msg");
-  el.textContent = text;
-  el.className = "form-msg " + type;
+const steps = ["startStep", "codeStep", "profileStep", "verifyingPanel", "alreadySignedInPanel"];
+function showStep(id) {
+  steps.forEach((s) => document.getElementById(s).classList.toggle("hidden", s !== id));
 }
-function hideMsg() {
-  document.getElementById("msg").className = "form-msg";
+function showMsg(el, text, type) {
+  const node = document.getElementById(el);
+  node.textContent = text;
+  node.className = "form-msg " + type;
 }
-function showPanel(which) {
-  document.getElementById("requestForm").classList.toggle("hidden", which !== "form");
-  document.getElementById("sentPanel").classList.toggle("hidden", which !== "sent");
-  document.getElementById("verifyingPanel").classList.toggle("hidden", which !== "verifying");
-  document.getElementById("alreadySignedInPanel").classList.toggle("hidden", which !== "alreadySignedIn");
+function hideMsg(el) {
+  document.getElementById(el).className = "form-msg";
 }
 
-// Held between step 1 (request) and step 2 (confirm code) — plain JS
-// variable, not sessionStorage, since code entry happens on this same page
-// load with no redirect in between.
 let pendingEmail = "";
-
-// Set right before a code confirmation triggers handleLanding(), so it can
-// tell "just verified this code" apart from "had a session already on
-// load" — the two need different panels (verifying vs. already-signed-in).
 let justVerified = false;
+let landingInFlight = false;
 
-document.getElementById("requestForm").addEventListener("submit", async (e) => {
+// ---------- OTP box wiring ----------
+const otpBoxes = Array.from(document.querySelectorAll(".otp-box"));
+
+function currentCode() {
+  return otpBoxes.map((b) => b.value).join("");
+}
+function clearOtpBoxes() {
+  otpBoxes.forEach((b) => (b.value = ""));
+  otpBoxes[0].focus();
+}
+otpBoxes.forEach((box, i) => {
+  box.addEventListener("input", () => {
+    box.value = box.value.replace(/[^0-9]/g, "").slice(0, 1);
+    if (box.value && i < otpBoxes.length - 1) otpBoxes[i + 1].focus();
+    if (currentCode().length === otpBoxes.length) attemptVerify();
+  });
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace" && !box.value && i > 0) otpBoxes[i - 1].focus();
+  });
+  box.addEventListener("paste", (e) => {
+    const text = (e.clipboardData || window.clipboardData).getData("text").replace(/[^0-9]/g, "");
+    if (!text) return;
+    e.preventDefault();
+    text.split("").slice(0, otpBoxes.length).forEach((ch, idx) => {
+      if (otpBoxes[idx]) otpBoxes[idx].value = ch;
+    });
+    const nextEmpty = otpBoxes.findIndex((b) => !b.value);
+    (nextEmpty === -1 ? otpBoxes[otpBoxes.length - 1] : otpBoxes[nextEmpty]).focus();
+    if (currentCode().length === otpBoxes.length) attemptVerify();
+  });
+});
+
+// ---------- Step 1: request code ----------
+document.getElementById("startForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const btn = document.getElementById("requestBtn");
+  const btn = document.getElementById("startBtn");
   btn.disabled = true;
   btn.textContent = "Sending…";
-  hideMsg();
+  hideMsg("msg");
 
-  const name = document.getElementById("reqName").value.trim();
-  const email = document.getElementById("reqEmail").value.trim();
-  const promotion_channel = document.getElementById("reqChannel").value;
-  const application_note = document.getElementById("reqNote").value.trim();
+  const email = document.getElementById("startEmail").value.trim();
 
+  // shouldCreateUser: true — this page is unified, so "sign in" and
+  // "apply" are the same action. Whether the person is new is decided
+  // after verification (see handleLanding), not here.
   const { error } = await affiliatesClient.auth.signInWithOtp({
     email,
-    options: {
-      shouldCreateUser: true,
-      // Carried in user_metadata so it's available once the code is
-      // confirmed and ensureAffiliateApplication() runs.
-      data: { name, promotion_channel, application_note },
-    },
+    options: { shouldCreateUser: true },
   });
 
   btn.disabled = false;
-  btn.textContent = "Continue with email";
+  btn.textContent = "Send code";
 
   if (error) {
-    showMsg(error.message || "Could not send the code. Try again.", "error");
+    showMsg("msg", error.message || "Could not send the code. Try again.", "error");
     return;
   }
 
   pendingEmail = email;
-  document.getElementById("otpCode").value = "";
-  document.getElementById("sentCopy").textContent =
-    `Check ${email} for an 8-digit code. Enter it below to confirm and continue.`;
-  showPanel("sent");
+  document.getElementById("codeEmailLabel").textContent = email;
+  clearOtpBoxes();
+  showStep("codeStep");
 });
 
-document.getElementById("verifyCodeBtn").addEventListener("click", async () => {
-  const token = document.getElementById("otpCode").value.trim();
-  if (!token) {
-    showMsg("Enter the 6-digit code from the email.", "error");
+document.getElementById("changeEmailBtn").addEventListener("click", () => {
+  hideMsg("codeMsg");
+  showStep("startStep");
+});
+
+document.getElementById("verifyCodeBtn").addEventListener("click", attemptVerify);
+
+let verifyInFlight = false;
+async function attemptVerify() {
+  if (verifyInFlight) return;
+  const token = currentCode();
+  if (token.length < 6) {
+    showMsg("codeMsg", "Enter the full code from the email.", "error");
     return;
   }
+  verifyInFlight = true;
 
   const btn = document.getElementById("verifyCodeBtn");
   btn.disabled = true;
   btn.textContent = "Confirming…";
-  hideMsg();
+  hideMsg("codeMsg");
 
   const { error } = await affiliatesClient.auth.verifyOtp({
     email: pendingEmail,
@@ -163,25 +238,27 @@ document.getElementById("verifyCodeBtn").addEventListener("click", async () => {
     type: "email",
   });
 
+  verifyInFlight = false;
   btn.disabled = false;
   btn.textContent = "Confirm code";
 
   if (error) {
-    showMsg(error.message || "That code didn't work. Check it and try again.", "error");
+    document.getElementById("otpRow").classList.remove("shake");
+    void document.getElementById("otpRow").offsetWidth; // restart animation
+    document.getElementById("otpRow").classList.add("shake");
+    showMsg("codeMsg", error.message || "That code didn't work. Check it and try again.", "error");
+    clearOtpBoxes();
     return;
   }
 
+  document.getElementById("passStamp").classList.add("stamped");
   justVerified = true;
-  handleLanding();
-});
+  setTimeout(handleLanding, 250); // let the stamp animation land before moving on
+}
 
-document.getElementById("resendBtn").addEventListener("click", () => {
-  hideMsg();
-  showPanel("form");
-});
-
+// ---------- Google OAuth ----------
 document.getElementById("googleBtn").addEventListener("click", async () => {
-  hideMsg();
+  hideMsg("msg");
   const { error } = await affiliatesClient.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo: buildAuthRedirectUrl() },
@@ -189,16 +266,10 @@ document.getElementById("googleBtn").addEventListener("click", async () => {
   // On success this navigates away immediately to Google — nothing left to
   // do here. An error means it never left the page at all.
   if (error) {
-    showMsg(error.message || "Could not start Google sign-in. Try again.", "error");
+    showMsg("msg", error.message || "Could not start Google sign-in. Try again.", "error");
   }
 });
 
-// Google (and any other OAuth provider) redirects back with a PKCE ?code=
-// param — supabase-js does NOT redeem this automatically, so it must be
-// exchanged explicitly before handleLanding() checks getSession(). Unlike
-// the old magic-link case, there's no cross-browser handoff risk here:
-// the person clicks the button and Google redirects back in the exact
-// same browser tab, so this should succeed reliably.
 async function exchangeOAuthCodeIfPresent() {
   const params = new URLSearchParams(window.location.search);
   if (!params.has("code")) return;
@@ -213,23 +284,40 @@ async function exchangeOAuthCodeIfPresent() {
   window.history.replaceState({}, document.title, cleanUrl);
 
   if (error) {
-    showMsg(error.message || "Could not complete Google sign-in. Try again.", "error");
+    showMsg("msg", error.message || "Could not complete Google sign-in. Try again.", "error");
     return;
   }
   justVerified = true;
 }
 
-// Guards against handleLanding() running twice concurrently. It's invoked
-// both directly (below, on load) and via the SIGNED_IN listener, which can
-// both end up racing to proceed once a session becomes available right
-// after verifyOtp() resolves. Without this guard, the second invocation
-// can see the affiliate row the first one just inserted, treat it as
-// "isNew: false", and jump straight to postAuthRedirect() — which
-// navigates the page away and cancels the first invocation's in-flight
-// screenNewApplication() request mid-flight (after its CORS preflight but
-// before the real POST completes), so AI screening silently never runs.
-let landingInFlight = false;
+// ---------- Step 3: profile (new partners) ----------
+document.getElementById("profileForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("profileBtn");
+  btn.disabled = true;
+  btn.textContent = "Submitting…";
+  hideMsg("profileMsg");
 
+  const name = document.getElementById("profName").value.trim();
+  const channel = document.getElementById("profChannel").value;
+  const note = document.getElementById("profNote").value.trim();
+
+  const { error } = await createAffiliateApplication(name, channel, note);
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = "Submit application";
+    showMsg("profileMsg", "Couldn't file your application: " + error, "error");
+    return;
+  }
+
+  showStep("verifyingPanel");
+  document.querySelector("#verifyingPanel .auth-note").textContent = "Reviewing your application…";
+  await screenNewApplication();
+  await postAuthRedirect();
+});
+
+// ---------- Landing logic: decide new vs. returning after verification ----------
 async function handleLanding() {
   if (landingInFlight) return;
   landingInFlight = true;
@@ -241,40 +329,48 @@ async function handleLanding() {
   if (!session) {
     landingInFlight = false;
     justVerified = false;
-    showPanel("form");
+    showStep("startStep");
     return;
   }
 
-  showPanel(justVerified ? "verifying" : "alreadySignedIn");
-  const { error, isNew } = await ensureAffiliateApplication(
-    document.getElementById("reqName").value.trim(),
-    document.getElementById("reqChannel").value,
-    document.getElementById("reqNote").value.trim(),
-  );
+  showStep(justVerified ? "verifyingPanel" : "alreadySignedInPanel");
+  document.querySelector("#verifyingPanel .auth-note").textContent = "Signing you in…";
+
+  const { affiliate, error } = await getExistingAffiliate();
+
   if (error) {
     landingInFlight = false;
     justVerified = false;
-    showPanel("form");
-    showMsg("Signed in, but couldn't file your application: " + error, "error");
+    showStep("startStep");
+    showMsg("msg", "Signed in, but couldn't load your application: " + error, "error");
     return;
   }
-  // Only screen brand-new applications — a returning verify-only session
-  // (application already existed) skips this entirely.
-  if (isNew) {
-    document.querySelector("#verifyingPanel .auth-note").textContent =
-      "Reviewing your application…";
-    await screenNewApplication();
+
+  if (affiliate) {
+    // Returning partner — nothing left to collect, go straight to the
+    // right page (dashboard, links, or wherever their promote-intent
+    // points).
+    await postAuthRedirect();
+    return;
   }
-  await postAuthRedirect();
+
+  // Verified, but no application on file yet — this is a new partner.
+  // Prefill what we already know (Google gives a name; email never
+  // changes) so the follow-up step is as short as possible.
+  landingInFlight = false;
+  const nameGuess =
+    session.user.user_metadata?.full_name ||
+    session.user.user_metadata?.name ||
+    "";
+  document.getElementById("profName").value = nameGuess;
+  showStep("profileStep");
 }
 
-// Supabase fires SIGNED_IN once verifyOtp() establishes the session. Handle
-// both that event and the case where a session already existed when the
-// page loaded (returning visitor).
 affiliatesClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") handleLanding();
 });
 (async () => {
+  restorePromoteIntentFromUrl();
   await exchangeOAuthCodeIfPresent();
   handleLanding();
 })();
