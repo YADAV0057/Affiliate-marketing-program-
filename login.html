@@ -24,6 +24,8 @@
        partners already have a name/channel/note on file; there's nothing
        to re-collect here. -->
   <form id="loginForm">
+    <button type="button" class="btn secondary" id="googleBtn" style="width:100%;margin-bottom:16px;">Continue with Google</button>
+    <p class="auth-note" style="text-align:center;margin-bottom:16px;">or sign in with email</p>
     <div class="field">
       <label for="loginEmail">Email</label>
       <input type="email" id="loginEmail" required autocomplete="email" />
@@ -163,6 +165,43 @@ document.getElementById("resendBtn").addEventListener("click", () => {
   showPanel("form");
 });
 
+document.getElementById("googleBtn").addEventListener("click", async () => {
+  hideMsg();
+  const { error } = await affiliatesClient.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: buildAuthRedirectUrl() },
+  });
+  if (error) {
+    showMsg(error.message || "Could not start Google sign-in. Try again.", "error");
+  }
+});
+
+// See auth.html for the full explanation. Note: unlike the email form on
+// this page, Google sign-in has no shouldCreateUser:false equivalent — a
+// brand-new Google account will get an affiliate row created the same way
+// a fresh auth.html application would (ensureAffiliateApplication treats
+// creating the account as applying). That's fine here since it's the same
+// idempotent helper either way.
+async function exchangeOAuthCodeIfPresent() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("code")) return;
+
+  const { error } = await affiliatesClient.auth.exchangeCodeForSession(window.location.href);
+
+  params.delete("code");
+  const cleanUrl =
+    window.location.pathname +
+    (params.toString() ? "?" + params.toString() : "") +
+    window.location.hash;
+  window.history.replaceState({}, document.title, cleanUrl);
+
+  if (error) {
+    showMsg(error.message || "Could not complete Google sign-in. Try again.", "error");
+    return;
+  }
+  justVerified = true;
+}
+
 let landingInFlight = false;
 
 async function handleLanding() {
@@ -204,7 +243,10 @@ async function handleLanding() {
 affiliatesClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") handleLanding();
 });
-handleLanding();
+(async () => {
+  await exchangeOAuthCodeIfPresent();
+  handleLanding();
+})();
 </script>
 
 </body>
