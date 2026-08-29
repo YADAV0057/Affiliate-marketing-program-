@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mood Store — Affiliate Portal</title>
+<title>Mood Store — Become a Partner</title>
 <link rel="stylesheet" href="css/portal.css" />
 </head>
 <body>
@@ -13,175 +13,24 @@
 </header>
 <div class="torn-divider"></div>
 
-<main class="auth-shell">
+<nav class="tab-bar">
+  <a href="index.html" class="tab-link active">Browse</a>
+  <a href="#" class="tab-link tab-link-btn" id="authNavLink">Sign in</a>
+</nav>
+
+<main class="portal-main">
   <p class="section-eyebrow">Creator partner program</p>
   <h1 class="section-title mt-0">Promote what you love. Earn on every sale.</h1>
+  <p class="auth-note mb-lg">Browse the catalogue below — no account needed. Found something you want to promote? Click it, and we'll get you set up.</p>
 
-  <div class="auth-tabs">
-    <button class="auth-tab active" id="tabSignIn" onclick="switchTab('signin')">Sign in</button>
-    <button class="auth-tab" id="tabApply" onclick="switchTab('apply')">Apply</button>
+  <div id="catalogueList" class="product-grid">
+    <p class="state-msg">Loading products…</p>
   </div>
-
-  <div id="msg" class="form-msg"></div>
-
-  <!-- Sign in -->
-  <form id="signInForm">
-    <div class="field">
-      <label for="siEmail">Email</label>
-      <input type="email" id="siEmail" required autocomplete="email" />
-    </div>
-    <div class="field">
-      <label for="siPassword">Password</label>
-      <input type="password" id="siPassword" required autocomplete="current-password" />
-    </div>
-    <button type="submit" class="btn" id="signInBtn" style="width:100%">Sign in</button>
-  </form>
-
-  <!-- Apply -->
-  <form id="applyForm" class="hidden">
-    <div class="field">
-      <label for="apName">Your name</label>
-      <input type="text" id="apName" required autocomplete="name" />
-    </div>
-    <div class="field">
-      <label for="apEmail">Email</label>
-      <input type="email" id="apEmail" required autocomplete="email" />
-    </div>
-    <div class="field">
-      <label for="apPassword">Choose a password</label>
-      <input type="password" id="apPassword" required minlength="8" autocomplete="new-password" />
-    </div>
-    <button type="submit" class="btn" id="applyBtn" style="width:100%">Submit application</button>
-    <p class="auth-note">Applications are reviewed manually. You'll be able to sign in right away, but link generation and earnings unlock once you're approved.</p>
-  </form>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
-<script>
-function switchTab(which) {
-  const isSignIn = which === "signin";
-  document.getElementById("tabSignIn").classList.toggle("active", isSignIn);
-  document.getElementById("tabApply").classList.toggle("active", !isSignIn);
-  document.getElementById("signInForm").classList.toggle("hidden", !isSignIn);
-  document.getElementById("applyForm").classList.toggle("hidden", isSignIn);
-  hideMsg();
-}
-
-function showMsg(text, type) {
-  const el = document.getElementById("msg");
-  el.textContent = text;
-  el.className = "form-msg " + type;
-}
-function hideMsg() {
-  const el = document.getElementById("msg");
-  el.className = "form-msg";
-}
-
-document.getElementById("signInForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById("signInBtn");
-  btn.disabled = true;
-  btn.textContent = "Signing in…";
-  hideMsg();
-
-  const email = document.getElementById("siEmail").value.trim();
-  const password = document.getElementById("siPassword").value;
-
-  const { error } = await affiliatesClient.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    showMsg(error.message || "Could not sign in. Check your email and password.", "error");
-    btn.disabled = false;
-    btn.textContent = "Sign in";
-    return;
-  }
-
-  window.location.href = "dashboard.html";
-});
-
-document.getElementById("applyForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById("applyBtn");
-  btn.disabled = true;
-  btn.textContent = "Submitting…";
-  hideMsg();
-
-  const name = document.getElementById("apName").value.trim();
-  const email = document.getElementById("apEmail").value.trim();
-  const password = document.getElementById("apPassword").value;
-
-  // If there's already a signed-in session (e.g. bounced back here from the
-  // dashboard's "no application found" banner, or returned after confirming
-  // email), reuse it instead of trying to sign up again.
-  const {
-    data: { session: existingSession },
-  } = await affiliatesClient.auth.getSession();
-
-  let userId = existingSession?.user?.id;
-
-  if (!userId) {
-    const { data: signUpData, error: signUpErr } = await affiliatesClient.auth.signUp({
-      email,
-      password,
-    });
-
-    if (signUpErr) {
-      showMsg(signUpErr.message || "Could not create your account.", "error");
-      btn.disabled = false;
-      btn.textContent = "Submit application";
-      return;
-    }
-
-    if (!signUpData.session) {
-      showMsg("Check your email to confirm your account, then come back and sign in — you can finish applying from here once you're signed in.", "ok");
-      btn.disabled = false;
-      btn.textContent = "Submit application";
-      return;
-    }
-
-    userId = signUpData.user.id;
-  }
-
-  // File the affiliate application row (status defaults to 'pending',
-  // referral_code auto-generated by the database).
-  const { error: applyErr } = await affiliatesClient.from("affiliates").insert({
-    user_id: userId,
-    name,
-    email,
-  });
-
-  if (applyErr) {
-    showMsg(
-      applyErr.message.includes("duplicate")
-        ? "An application already exists for this account."
-        : applyErr.message || "Could not submit your application.",
-      "error",
-    );
-    btn.disabled = false;
-    btn.textContent = "Submit application";
-    return;
-  }
-
-  showMsg("Application submitted! The dashboard unlocks once you're approved.", "ok");
-  btn.disabled = false;
-  btn.textContent = "Submit application";
-  setTimeout(() => (window.location.href = "dashboard.html"), 1200);
-});
-
-// If already signed in AND not explicitly here to apply, skip straight to
-// the dashboard (auth-guard there handles pending/rejected states). The
-// apply=1 param is used by the "Apply now" link on the status banner, for
-// a signed-in user who hasn't filed an application yet.
-const params = new URLSearchParams(window.location.search);
-if (params.get("apply") === "1") {
-  switchTab("apply");
-} else {
-  affiliatesClient.auth.getSession().then(({ data: { session } }) => {
-    if (session) window.location.href = "dashboard.html";
-  });
-}
-</script>
+<script src="js/catalogue.js"></script>
 
 </body>
 </html>
