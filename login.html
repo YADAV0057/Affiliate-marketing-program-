@@ -20,7 +20,7 @@
 
   <div id="msg" class="form-msg"></div>
 
-  <!-- Step 1: request the magic link — email only, nothing else. Existing
+  <!-- Step 1: request the sign-in code — email only, nothing else. Existing
        partners already have a name/channel/note on file; there's nothing
        to re-collect here. -->
   <form id="loginForm">
@@ -28,14 +28,24 @@
       <label for="loginEmail">Email</label>
       <input type="email" id="loginEmail" required autocomplete="email" />
     </div>
-    <button type="submit" class="btn" id="loginBtn" style="width:100%">Send sign-in link</button>
-    <p class="auth-note">No password needed. We'll email you a link — clicking it signs you straight in.</p>
+    <button type="submit" class="btn" id="loginBtn" style="width:100%">Send sign-in code</button>
+    <p class="auth-note">No password needed. We'll email you a 6-digit code — enter it below and you're signed straight in.</p>
     <p class="auth-note">New here? <a href="auth.html">Apply to become a partner</a> instead.</p>
   </form>
 
-  <!-- Step 2: shown after the link is sent, replaces the form -->
+  <!-- Step 2: shown after the code is sent, replaces the form. Code entry
+       is the primary path — it works from any app/browser since there's no
+       cross-browser handoff involved. The emailed link still works too, as
+       a fallback, for anyone who opens it in the same browser they signed
+       in from. -->
   <div id="sentPanel" class="hidden">
     <p class="auth-note mb-lg" id="sentCopy"></p>
+    <div class="field">
+      <label for="otpCode">6-digit code from that email</label>
+      <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" />
+    </div>
+    <button type="button" class="btn" id="verifyCodeBtn" style="width:100%">Confirm code</button>
+    <p class="auth-note">Or tap the link in that same email instead — either one works.</p>
     <button type="button" class="btn secondary small" id="resendBtn">Use a different email</button>
   </div>
 
@@ -70,6 +80,11 @@ function showPanel(which) {
   document.getElementById("alreadySignedInPanel").classList.toggle("hidden", which !== "alreadySignedIn");
 }
 
+// Held between step 1 (request) and step 2 (confirm code) — plain JS
+// variable, not sessionStorage, since code entry happens on this same page
+// load with no redirect in between.
+let pendingEmail = "";
+
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = document.getElementById("loginBtn");
@@ -92,22 +107,56 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   });
 
   btn.disabled = false;
-  btn.textContent = "Send sign-in link";
+  btn.textContent = "Send sign-in code";
 
   if (error) {
     const notFound = /user not found|signups not allowed/i.test(error.message || "");
     showMsg(
       notFound
         ? "We couldn't find an account for that email. Use \"Apply to become a partner\" below if you're new."
-        : (error.message || "Could not send the link. Try again."),
+        : (error.message || "Could not send the code. Try again."),
       "error",
     );
     return;
   }
 
+  pendingEmail = email;
+  document.getElementById("otpCode").value = "";
   document.getElementById("sentCopy").textContent =
-    `Check ${email} for a link to sign in. It'll bring you right back here.`;
+    `Check ${email} for a 6-digit code. Enter it below to sign in.`;
   showPanel("sent");
+});
+
+document.getElementById("verifyCodeBtn").addEventListener("click", async () => {
+  const token = document.getElementById("otpCode").value.trim();
+  if (!token) {
+    showMsg("Enter the 6-digit code from the email.", "error");
+    return;
+  }
+
+  const btn = document.getElementById("verifyCodeBtn");
+  btn.disabled = true;
+  btn.textContent = "Confirming…";
+  hideMsg();
+
+  // verifyOtp establishes the session directly in *this* browser tab from
+  // the typed code — no code_verifier, no cross-browser handoff, so it
+  // can't fail the way the link-based PKCE exchange did.
+  const { error } = await affiliatesClient.auth.verifyOtp({
+    email: pendingEmail,
+    token,
+    type: "email",
+  });
+
+  btn.disabled = false;
+  btn.textContent = "Confirm code";
+
+  if (error) {
+    showMsg(error.message || "That code didn't work. Check it and try again.", "error");
+    return;
+  }
+
+  handleLanding();
 });
 
 document.getElementById("resendBtn").addEventListener("click", () => {
@@ -119,20 +168,16 @@ restorePromoteIntentFromUrl();
 
 // See auth.html for the full explanation: PKCE returns a ?code= param that
 // supabase-js does NOT redeem automatically, unlike the old implicit-flow
-// hash tokens. Must run — and finish — before handleLanding() checks
-// getSession().
+// hash tokens. This is now purely a fallback path for anyone who taps the
+// emailed link in the same browser they requested it from — when it fails
+// (link opened in a different browser/app, the common mobile case), we
+// send them back to the form to use the code instead rather than leaving a
+// dead-end error.
 async function exchangePkceCodeIfPresent() {
   const params = new URLSearchParams(window.location.search);
   if (!params.has("code")) return;
 
   const { error } = await affiliatesClient.auth.exchangeCodeForSession(window.location.href);
-  if (error) {
-    showMsg(
-      "Couldn't confirm that link: " + error.message +
-        ". Make sure you open the email link in the same browser you signed in from.",
-      "error",
-    );
-  }
 
   params.delete("code");
   const cleanUrl =
@@ -140,6 +185,16 @@ async function exchangePkceCodeIfPresent() {
     (params.toString() ? "?" + params.toString() : "") +
     window.location.hash;
   window.history.replaceState({}, document.title, cleanUrl);
+
+  if (error) {
+    showPanel("form");
+    showMsg(
+      "That sign-in link didn't work in this browser. Please request a new email and use the 6-digit code instead — it works from any app.",
+      "error",
+    );
+    return false;
+  }
+  return true;
 }
 
 let landingInFlight = false;
@@ -158,12 +213,16 @@ async function handleLanding() {
     return;
   }
 
-  // See auth.html for why both forms are checked — PKCE (?code=) is the
-  // current flow, access_token hash was the old implicit flow.
+  // See auth.html for why both forms are checked — PKCE (?code=) and the
+  // old implicit-flow hash are both "fresh link click" landings. Code
+  // entry (the primary path now) has neither, but is just as much a fresh
+  // confirmation, so it gets the same "verifying" treatment rather than
+  // "already signed in from an earlier visit".
   const isMagicLinkLanding =
     window.location.hash.includes("access_token") ||
     new URLSearchParams(window.location.search).has("code");
-  showPanel(isMagicLinkLanding ? "verifying" : "alreadySignedIn");
+  const isFreshCodeConfirm = !document.getElementById("sentPanel").classList.contains("hidden");
+  showPanel(isMagicLinkLanding || isFreshCodeConfirm ? "verifying" : "alreadySignedIn");
 
   // No name/channel/note fields exist on this page — ensureAffiliateApplication
   // falls back to user_metadata (set at original signup) or the email's
@@ -187,7 +246,8 @@ affiliatesClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") handleLanding();
 });
 (async () => {
-  await exchangePkceCodeIfPresent();
+  const ok = await exchangePkceCodeIfPresent();
+  if (ok === false) return;
   handleLanding();
 })();
 </script>
