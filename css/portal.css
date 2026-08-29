@@ -414,6 +414,23 @@ body {
   display: block;
 }
 
+.product-card-highlight {
+  outline: 2px solid var(--plum);
+  outline-offset: 2px;
+}
+
+.back-link {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  margin-bottom: 18px;
+}
+
+.back-link:hover {
+  color: var(--plum-dark);
+}
+
 @media (max-width: 420px) {
   .stat-grid {
     grid-template-columns: 1fr 1fr;
