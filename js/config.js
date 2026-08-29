@@ -12,13 +12,32 @@ const STORE_SUPABASE_ANON_KEY =
 
 const STORE_SLUG = "moodstore";
 
+// persistSession/autoRefreshToken/detectSessionInUrl are already Supabase's
+// defaults — stated explicitly here so it's not implicit/easy to lose in a
+// future edit. This is what makes a signed-in affiliate stay signed in on
+// this browser (session stored in localStorage, access token silently
+// refreshed in the background) without ever re-entering the magic link,
+// until they explicitly sign out, delete their account, or clear their
+// browser's site data. No password is needed for this — that's a property
+// of session storage, not of how the person originally signed in.
+const AUTH_CLIENT_OPTIONS = {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+  },
+};
+
 const affiliatesClient = window.supabase.createClient(
   AFFILIATES_SUPABASE_URL,
   AFFILIATES_SUPABASE_ANON_KEY,
+  AUTH_CLIENT_OPTIONS,
 );
 const storeClient = window.supabase.createClient(
   STORE_SUPABASE_URL,
   STORE_SUPABASE_ANON_KEY,
+  AUTH_CLIENT_OPTIONS,
 );
 
 // Resolves the public-safe row for the "moodstore" store (id, slug, name,
@@ -164,7 +183,7 @@ function renderStatusBanner(title, body, showApplyLink) {
   const applyLink = showApplyLink
     ? '<a href="auth.html?apply=1" class="btn small" style="margin-right:8px">Apply now</a>'
     : "";
-  banner.innerHTML = `<strong>${title}</strong><p>${body}</p><div class="status-banner-actions">${applyLink}<button class="btn secondary small" id="signOutBtn">Sign out</button></div>`;
+  banner.innerHTML = `<strong>${title}</strong><p>${body}</p><div class="status-banner-actions">${applyLink}<button class="btn secondary small" id="signOutBtn">Sign out</button><button class="btn secondary small" id="deleteAccountBtn" style="color:#b3413a">Delete account</button></div>`;
   document.body.appendChild(banner);
 }
 
@@ -178,7 +197,48 @@ async function signOutAndRedirect() {
 // banner (present when auth-guard blocks the page).
 document.addEventListener("click", (e) => {
   if (e.target.id === "signOutBtn") signOutAndRedirect();
+  if (e.target.id === "deleteAccountBtn") handleDeleteAccountClick();
 });
+
+// ---------- Phase 4e: Delete Account ----------
+// Server-side rules (delete-account edge function, moodstore-affiliates):
+// hard-deletes the auth.users row; anonymizes name/email/payout details on
+// the affiliates row but keeps referral_code/status and all
+// affiliate_conversions/affiliate_payouts history intact (may be needed
+// for Section 194H TDS filing) — never touched by the client, the edge
+// function decides what's kept. The typed "DELETE" confirmation is
+// enforced server-side too, not just here; this prompt is just the UX.
+async function handleDeleteAccountClick() {
+  const typed = window.prompt(
+    "This permanently deletes your sign-in and removes your name/email from " +
+      "our records. Your sales and payout history is kept for tax records, " +
+      "but is no longer tied to you.\n\nType DELETE to confirm.",
+  );
+  if (typed === null) return; // cancelled
+  if (typed.trim().toUpperCase() !== "DELETE") {
+    alert('Account not deleted — you need to type "DELETE" exactly.');
+    return;
+  }
+
+  try {
+    const { data, error } = await affiliatesClient.functions.invoke(
+      "delete-account",
+      { body: { confirmation: typed.trim() } },
+    );
+    if (error) {
+      alert("Couldn't delete your account: " + (error.message || "please try again."));
+      return;
+    }
+    if (data && data.error) {
+      alert(data.error);
+      return;
+    }
+    await affiliatesClient.auth.signOut();
+    window.location.href = "index.html?accountDeleted=1";
+  } catch (err) {
+    alert("Couldn't delete your account: " + (err.message || "please try again."));
+  }
+}
 
 // ---------- Public catalogue (index.html) ----------
 // No auth required — reads store_products directly with the anon key,
@@ -276,8 +336,17 @@ function restorePromoteIntentFromUrl() {
 // Builds the emailRedirectTo URL for signInWithOtp: back to auth.html on
 // this same deployment, carrying the promote-intent slug (if any) as a
 // query param so it survives even if sessionStorage doesn't.
+// Builds the emailRedirectTo URL for signInWithOtp: back to *this same
+// page* (auth.html or login.html, whichever called it) on this
+// deployment, carrying the promote-intent slug (if any) as a query param
+// so it survives even if sessionStorage doesn't. Using the current page
+// rather than a hardcoded "auth.html" matters now that login.html exists
+// separately — a magic link sent from login.html needs to land back on
+// login.html (which knows there's no name/channel/note to collect), not
+// bounce through the apply form.
 function buildAuthRedirectUrl() {
-  const url = new URL("auth.html", window.location.origin + window.location.pathname.replace(/[^/]+$/, ""));
+  const currentPage = window.location.pathname.split("/").pop() || "auth.html";
+  const url = new URL(currentPage, window.location.origin + window.location.pathname.replace(/[^/]+$/, ""));
   const intentSlug = sessionStorage.getItem("promoteIntentSlug");
   if (intentSlug) url.searchParams.set("promote", intentSlug);
   return url.toString();
