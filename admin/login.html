@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin sign in — Mood Store Partners</title>
+<link rel="stylesheet" href="../css/portal.css" />
+</head>
+<body>
+
+<header class="portal-header">
+  <div class="portal-brand">Mood Store <small>Partners Admin</small></div>
+</header>
+<div class="torn-divider"></div>
+
+<main class="auth-shell">
+  <p class="section-eyebrow">Admin</p>
+  <h1 class="section-title mt-0" id="authHeading">Admin sign in</h1>
+
+  <div id="msg" class="form-msg"></div>
+
+  <!-- Invite-only: public signup is disabled at the project level (see
+       admin-auth-guard.js). Admins are provisioned directly in admin_users
+       by whoever runs the project — this form only ever signs in an
+       existing admin, it never creates one. -->
+  <form id="adminLoginForm">
+    <div class="field">
+      <label for="adminEmail">Email</label>
+      <input type="email" id="adminEmail" required autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="adminPassword">Password</label>
+      <input type="password" id="adminPassword" required autocomplete="current-password" />
+    </div>
+    <button type="submit" class="btn" id="adminLoginBtn" style="width:100%">Sign in</button>
+  </form>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script>
+function showMsg(text, type) {
+  const el = document.getElementById("msg");
+  el.textContent = text;
+  el.className = "form-msg " + type;
+}
+function hideMsg() {
+  document.getElementById("msg").className = "form-msg";
+}
+
+// If a "denied=1" param is present (admin-auth-guard.js redirects here with
+// it when a signed-in-but-non-admin session tries to reach the admin
+// panel), surface why they landed back on this screen instead of leaving
+// it unexplained.
+if (new URLSearchParams(window.location.search).get("denied") === "1") {
+  showMsg("That account isn't an admin on this project.", "error");
+}
+
+document.getElementById("adminLoginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("adminLoginBtn");
+  btn.disabled = true;
+  btn.textContent = "Signing in…";
+  hideMsg();
+
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value;
+
+  const { data, error } = await affiliatesClient.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+    showMsg(error.message || "Could not sign in. Check your email and password.", "error");
+    return;
+  }
+
+  // Confirm this account is actually an admin before leaving the login
+  // page — same admin_users check applications.html enforces via
+  // requireAdmin(), just surfaced here with a clear message instead of a
+  // silent bounce.
+  const { data: adminRow } = await affiliatesClient
+    .from("admin_users")
+    .select("user_id")
+    .eq("user_id", data.user.id)
+    .maybeSingle();
+
+  if (!adminRow) {
+    await affiliatesClient.auth.signOut();
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+    showMsg("That account isn't an admin on this project.", "error");
+    return;
+  }
+
+  window.location.href = "applications.html";
+});
+
+// Already signed in as an admin? Skip straight to the panel instead of
+// showing the form.
+(async () => {
+  const {
+    data: { session },
+  } = await affiliatesClient.auth.getSession();
+  if (!session) return;
+
+  const { data: adminRow } = await affiliatesClient
+    .from("admin_users")
+    .select("user_id")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (adminRow) window.location.href = "applications.html";
+})();
+</script>
+
+</body>
+</html>
+
