@@ -30,6 +30,21 @@
       <label for="reqEmail">Email</label>
       <input type="email" id="reqEmail" required autocomplete="email" />
     </div>
+    <div class="field">
+      <label for="reqChannel">Where will you promote us?</label>
+      <select id="reqChannel" required>
+        <option value="" disabled selected>Choose one</option>
+        <option value="Instagram">Instagram</option>
+        <option value="YouTube">YouTube</option>
+        <option value="Blog / website">Blog / website</option>
+        <option value="WhatsApp / Telegram group">WhatsApp / Telegram group</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="reqNote">Your handle/site, and how you plan to promote us</label>
+      <textarea id="reqNote" required rows="3" placeholder="e.g. instagram.com/yourhandle — I post outfit reels and would link products in my bio/stories"></textarea>
+    </div>
     <button type="submit" class="btn" id="requestBtn" style="width:100%">Continue with email</button>
     <p class="auth-note">No password needed. We'll email you a link — clicking it confirms your email and files your application in one step. You'll be able to generate links and see earnings once it's approved.</p>
   </form>
@@ -72,13 +87,18 @@ document.getElementById("requestForm").addEventListener("submit", async (e) => {
 
   const name = document.getElementById("reqName").value.trim();
   const email = document.getElementById("reqEmail").value.trim();
+  const promotion_channel = document.getElementById("reqChannel").value;
+  const application_note = document.getElementById("reqNote").value.trim();
 
   const { error } = await affiliatesClient.auth.signInWithOtp({
     email,
     options: {
       shouldCreateUser: true,
       emailRedirectTo: buildAuthRedirectUrl(),
-      data: { name },
+      // Carried in user_metadata (not sessionStorage) so it survives the
+      // magic-link hop even when it's opened in a different browser
+      // context — same reasoning as `name` already got here.
+      data: { name, promotion_channel, application_note },
     },
   });
 
@@ -117,13 +137,22 @@ async function handleLanding() {
   }
 
   showPanel("verifying");
-  const { error } = await ensureAffiliateApplication(
+  const { error, isNew } = await ensureAffiliateApplication(
     document.getElementById("reqName").value.trim(),
+    document.getElementById("reqChannel").value,
+    document.getElementById("reqNote").value.trim(),
   );
   if (error) {
     showPanel("form");
     showMsg("Signed in, but couldn't file your application: " + error, "error");
     return;
+  }
+  // Only screen brand-new applications — a returning verify-only session
+  // (application already existed) skips this entirely.
+  if (isNew) {
+    document.querySelector("#verifyingPanel .auth-note").textContent =
+      "Reviewing your application…";
+    await screenNewApplication();
   }
   await postAuthRedirect();
 }
