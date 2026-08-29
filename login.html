@@ -133,7 +133,11 @@ async function handleLanding() {
     return;
   }
 
-  const isMagicLinkLanding = window.location.hash.includes("access_token");
+  // See auth.html for why both forms are checked — PKCE (?code=) is the
+  // current flow, access_token hash was the old implicit flow.
+  const isMagicLinkLanding =
+    window.location.hash.includes("access_token") ||
+    new URLSearchParams(window.location.search).has("code");
   showPanel(isMagicLinkLanding ? "verifying" : "alreadySignedIn");
 
   // No name/channel/note fields exist on this page — ensureAffiliateApplication
