@@ -488,6 +488,117 @@ body {
   margin-left: auto;
 }
 
+.kebab-btn {
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  padding-right: 2px;
+  color: var(--ink-soft);
+}
+
+.kebab-btn:hover {
+  color: var(--plum-dark);
+}
+
+/* ---------- Account drawer (Sign out / Delete account) ----------
+   Tucks the two account-level actions behind a single "..." trigger in
+   the tab bar instead of sitting inline next to everyday nav links. A
+   bottom sheet reads as the native mobile pattern here; opened/closed
+   in js/config.js (initAccountDrawer) via the .open class so the
+   transform/opacity transitions below can run before display is
+   removed entirely. */
+
+body.drawer-open {
+  overflow: hidden;
+}
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(43, 36, 28, 0.32);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  z-index: 40;
+}
+
+.drawer-overlay.open {
+  opacity: 1;
+}
+
+.drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  padding: 10px 20px calc(env(safe-area-inset-bottom, 0px) + 18px);
+  box-shadow: 0 -8px 24px rgba(43, 36, 28, 0.14);
+  transform: translateY(100%);
+  transition: transform 0.24s ease;
+  z-index: 41;
+}
+
+.drawer.open {
+  transform: translateY(0);
+}
+
+.drawer-handle {
+  width: 36px;
+  height: 4px;
+  margin: 6px auto 14px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.drawer-item {
+  display: block;
+  width: 100%;
+  padding: 14px 4px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 15px;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.drawer-item:first-of-type {
+  border-top: none;
+}
+
+.drawer-item:active {
+  background: var(--cream);
+}
+
+.drawer-item-danger {
+  color: var(--error);
+}
+
+.drawer-cancel {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 4px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: center;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.drawer-cancel:hover {
+  color: var(--plum-dark);
+}
+
 /* ---------- Main content ---------- */
 
 .portal-main {
@@ -613,17 +724,73 @@ body {
 
 .link-box {
   display: none;
+  align-items: flex-start;
+  gap: 6px;
   margin-top: 10px;
-  padding: 8px 10px;
+  padding: 8px 8px 8px 10px;
   background: var(--cream);
   border: 1px solid var(--line);
   border-radius: 6px;
   font-size: 11px;
-  word-break: break-all;
   color: var(--ink-soft);
 }
 
 .link-box.visible {
+  display: flex;
+}
+
+.link-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+  word-break: break-all;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--plum-dark);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease, transform 0.1s ease;
+}
+
+.copy-btn:hover {
+  border-color: var(--plum);
+}
+
+.copy-btn:active {
+  transform: scale(0.92);
+}
+
+.copy-btn.copied {
+  background: var(--ok-bg);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.copy-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.copy-btn .icon-check {
+  display: none;
+}
+
+.copy-btn.copied .icon-copy {
+  display: none;
+}
+
+.copy-btn.copied .icon-check {
   display: block;
 }
 
