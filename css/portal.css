@@ -11,6 +11,11 @@
   --ok-bg: #eaf3ec;
   --error: #a3392f;
   --error-bg: #fbeceb;
+  /* Added for the unified auth flow — a stamp/postmark red, distinct from
+     --error, used only for the ink-stamp signature moment so it doesn't
+     get diluted by also meaning "something went wrong". */
+  --stamp: #a3392f;
+  --stamp-soft: #d8b8a6;
 }
 
 * {
@@ -23,6 +28,14 @@ body {
   color: var(--ink);
   font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* ---------- Header ---------- */
@@ -60,7 +73,7 @@ body {
   background-color: var(--cream);
 }
 
-/* ---------- Auth shell (index.html) ---------- */
+/* ---------- Auth shell (auth.html) ---------- */
 
 .auth-shell {
   max-width: 420px;
@@ -91,33 +104,6 @@ body {
   font-size: 18px;
   color: var(--plum-dark);
   margin: 32px 0 12px;
-}
-
-.auth-tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 4px;
-  margin-bottom: 20px;
-}
-
-.auth-tab {
-  flex: 1;
-  padding: 10px 0;
-  background: transparent;
-  border: none;
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-
-.auth-tab.active {
-  background: var(--plum);
-  color: #fff;
 }
 
 .form-msg {
@@ -151,7 +137,9 @@ body {
   margin-bottom: 6px;
 }
 
-.field input {
+.field input,
+.field select,
+.field textarea {
   width: 100%;
   padding: 11px 13px;
   border: 1px solid var(--line);
@@ -162,7 +150,9 @@ body {
   color: var(--ink);
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
   outline: 2px solid var(--plum);
   outline-offset: 1px;
 }
@@ -176,6 +166,15 @@ body {
   font-family: inherit;
   font-size: 15px;
   cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--plum-dark);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn:disabled {
@@ -189,9 +188,59 @@ body {
   border: 1px solid var(--line);
 }
 
+.btn.secondary:hover:not(:disabled) {
+  background: var(--paper);
+  border-color: var(--plum);
+}
+
 .btn.small {
   padding: 8px 14px;
   font-size: 13px;
+}
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-google:hover:not(:disabled) {
+  border-color: var(--plum);
+  background: var(--paper);
+}
+
+.btn-google svg {
+  flex-shrink: 0;
+}
+
+.divider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.divider-row::before,
+.divider-row::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
 }
 
 .auth-note {
@@ -205,8 +254,172 @@ body {
   margin-bottom: 28px;
 }
 
+.auth-note a {
+  color: var(--plum-dark);
+}
+
 .hidden {
   display: none !important;
+}
+
+/* ---------- Step transitions ---------- */
+
+.auth-step {
+  animation: step-in 0.28s ease both;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Signature element: the Partner Pass ----------
+   The code-entry step is framed as a torn ticket stub rather than a bare
+   form: a perforated line separates the "code" half from a stamp that
+   fills in once the code is confirmed. This extends the torn-divider
+   motif already used in the header, rather than introducing an unrelated
+   device. */
+
+.pass-card {
+  position: relative;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px 20px 20px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 0 rgba(43, 36, 28, 0.03);
+}
+
+.pass-eyebrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rose);
+  margin-bottom: 14px;
+}
+
+.pass-eyebrow .pass-email {
+  color: var(--ink-soft);
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: 12px;
+}
+
+.pass-perforation {
+  position: relative;
+  height: 1px;
+  margin: 18px -20px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--line) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.pass-perforation::before,
+.pass-perforation::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  background: var(--cream);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.pass-perforation::before {
+  left: -28px;
+}
+
+.pass-perforation::after {
+  right: -28px;
+}
+
+/* ---------- OTP code boxes ---------- */
+
+.otp-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 4px 0 18px;
+}
+
+.otp-box {
+  width: 36px;
+  height: 46px;
+  text-align: center;
+  font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 20px;
+  color: var(--ink);
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0;
+}
+
+.otp-box:focus {
+  outline: none;
+  border-color: var(--plum);
+  background: var(--paper);
+}
+
+.otp-row.shake {
+  animation: otp-shake 0.32s ease;
+}
+
+@keyframes otp-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+
+/* The stamp itself — an outlined circle that fills, scales up slightly and
+   settles as soon as verifyOtp()/exchangeCodeForSession() resolves
+   successfully. Kept as a small side element next to the confirm button
+   rather than a full-screen takeover, so it reads as a detail, not a
+   celebration screen. */
+
+.pass-stamp-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pass-stamp {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--stamp-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transform: scale(0.9) rotate(-8deg);
+  transition: border-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
+}
+
+.pass-stamp svg {
+  width: 20px;
+  height: 20px;
+}
+
+.pass-stamp.stamped {
+  border-color: var(--stamp);
+  color: var(--stamp);
+  transform: scale(1) rotate(-8deg);
 }
 
 /* ---------- Status banner (auth-guard blocked states) ---------- */
@@ -437,5 +650,10 @@ body {
   }
   .stat-grid .stat-card:last-child {
     grid-column: 1 / -1;
+  }
+  .otp-box {
+    width: 32px;
+    height: 42px;
+    font-size: 18px;
   }
 }
