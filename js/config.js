@@ -246,6 +246,63 @@ async function handleDeleteAccountClick() {
   }
 }
 
+// ---------- Account drawer (Sign out / Delete account) ----------
+// Bottom sheet used by dashboard.html and links.html to hold the two
+// account-level actions behind a single "..." trigger. The Sign out /
+// Delete account buttons inside it keep the exact ids the delegated
+// click listener above already matches on, so no other wiring changes —
+// this only ever adds open/close behavior around them.
+//
+// Pages that don't render the trigger/drawer markup (auth.html,
+// index.html, admin/*) simply skip this — the early return makes it a
+// harmless no-op there.
+function initAccountDrawer() {
+  const trigger = document.getElementById("accountMenuBtn");
+  const overlay = document.getElementById("accountDrawerOverlay");
+  const drawer = document.getElementById("accountDrawer");
+  const closeBtn = document.getElementById("accountDrawerClose");
+  if (!trigger || !overlay || !drawer) return;
+
+  const CLOSE_TRANSITION_MS = 260; // >= the longest transition-duration below
+
+  function onKeydown(e) {
+    if (e.key === "Escape") closeDrawer();
+  }
+
+  function openDrawer() {
+    overlay.hidden = false;
+    drawer.hidden = false;
+    document.body.classList.add("drawer-open");
+    // Two-step show: clear `hidden` first, then add `.open` on the next
+    // frame so the transform/opacity transitions actually run instead of
+    // jumping straight to their end state.
+    requestAnimationFrame(() => {
+      overlay.classList.add("open");
+      drawer.classList.add("open");
+    });
+    trigger.setAttribute("aria-expanded", "true");
+    document.addEventListener("keydown", onKeydown);
+  }
+
+  function closeDrawer() {
+    overlay.classList.remove("open");
+    drawer.classList.remove("open");
+    document.body.classList.remove("drawer-open");
+    trigger.setAttribute("aria-expanded", "false");
+    document.removeEventListener("keydown", onKeydown);
+    setTimeout(() => {
+      overlay.hidden = true;
+      drawer.hidden = true;
+    }, CLOSE_TRANSITION_MS);
+  }
+
+  trigger.addEventListener("click", openDrawer);
+  overlay.addEventListener("click", closeDrawer);
+  if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
+}
+
+initAccountDrawer();
+
 // ---------- Public catalogue (index.html) ----------
 // No auth required — reads store_products directly with the anon key,
 // same trust boundary as the storefront itself. Must never be routed
