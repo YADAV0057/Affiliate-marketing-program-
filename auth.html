@@ -22,6 +22,8 @@
 
   <!-- Step 1: request the code -->
   <form id="requestForm">
+    <button type="button" class="btn secondary" id="googleBtn" style="width:100%;margin-bottom:16px;">Continue with Google</button>
+    <p class="auth-note" style="text-align:center;margin-bottom:16px;">or apply with email</p>
     <div class="field">
       <label for="reqName">Your name</label>
       <input type="text" id="reqName" required autocomplete="name" />
@@ -178,6 +180,45 @@ document.getElementById("resendBtn").addEventListener("click", () => {
   showPanel("form");
 });
 
+document.getElementById("googleBtn").addEventListener("click", async () => {
+  hideMsg();
+  const { error } = await affiliatesClient.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: buildAuthRedirectUrl() },
+  });
+  // On success this navigates away immediately to Google — nothing left to
+  // do here. An error means it never left the page at all.
+  if (error) {
+    showMsg(error.message || "Could not start Google sign-in. Try again.", "error");
+  }
+});
+
+// Google (and any other OAuth provider) redirects back with a PKCE ?code=
+// param — supabase-js does NOT redeem this automatically, so it must be
+// exchanged explicitly before handleLanding() checks getSession(). Unlike
+// the old magic-link case, there's no cross-browser handoff risk here:
+// the person clicks the button and Google redirects back in the exact
+// same browser tab, so this should succeed reliably.
+async function exchangeOAuthCodeIfPresent() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("code")) return;
+
+  const { error } = await affiliatesClient.auth.exchangeCodeForSession(window.location.href);
+
+  params.delete("code");
+  const cleanUrl =
+    window.location.pathname +
+    (params.toString() ? "?" + params.toString() : "") +
+    window.location.hash;
+  window.history.replaceState({}, document.title, cleanUrl);
+
+  if (error) {
+    showMsg(error.message || "Could not complete Google sign-in. Try again.", "error");
+    return;
+  }
+  justVerified = true;
+}
+
 // Guards against handleLanding() running twice concurrently. It's invoked
 // both directly (below, on load) and via the SIGNED_IN listener, which can
 // both end up racing to proceed once a session becomes available right
@@ -233,7 +274,10 @@ async function handleLanding() {
 affiliatesClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") handleLanding();
 });
-handleLanding();
+(async () => {
+  await exchangeOAuthCodeIfPresent();
+  handleLanding();
+})();
 </script>
 
 </body>
