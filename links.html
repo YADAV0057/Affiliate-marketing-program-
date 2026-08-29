@@ -17,9 +17,26 @@
   <a href="index.html" class="tab-link">Browse</a>
   <a href="dashboard.html" class="tab-link">Dashboard</a>
   <a href="links.html" class="tab-link active">Get links</a>
-  <button class="tab-link tab-link-btn" id="signOutBtn">Sign out</button>
-  <button class="tab-link tab-link-btn" id="deleteAccountBtn" style="color:#b3413a">Delete account</button>
+  <button type="button" class="tab-link tab-link-btn kebab-btn" id="accountMenuBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+      <circle cx="12" cy="5" r="1.8"/>
+      <circle cx="12" cy="12" r="1.8"/>
+      <circle cx="12" cy="19" r="1.8"/>
+    </svg>
+  </button>
 </nav>
+
+<!-- Account drawer: houses Sign out / Delete account so they're a tap
+     away instead of sitting in the tab bar next to everyday nav links.
+     Markup is identical on dashboard.html and links.html; behavior is
+     wired once in js/config.js (initAccountDrawer). -->
+<div class="drawer-overlay" id="accountDrawerOverlay" hidden></div>
+<div class="drawer" id="accountDrawer" hidden role="dialog" aria-modal="true" aria-label="Account">
+  <div class="drawer-handle" aria-hidden="true"></div>
+  <button type="button" class="drawer-item" id="signOutBtn">Sign out</button>
+  <button type="button" class="drawer-item drawer-item-danger" id="deleteAccountBtn">Delete account</button>
+  <button type="button" class="drawer-cancel" id="accountDrawerClose">Cancel</button>
+</div>
 
 <main class="portal-main">
   <p class="section-eyebrow">Product picker</p>
