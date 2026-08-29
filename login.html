@@ -29,7 +29,7 @@
       <input type="email" id="loginEmail" required autocomplete="email" />
     </div>
     <button type="submit" class="btn" id="loginBtn" style="width:100%">Send sign-in code</button>
-    <p class="auth-note">No password needed. We'll email you a 6-digit code — enter it below and you're signed straight in.</p>
+    <p class="auth-note">No password needed. We'll email you an 8-digit code — enter it below and you're signed straight in.</p>
     <p class="auth-note">New here? <a href="auth.html">Apply to become a partner</a> instead.</p>
   </form>
 
@@ -40,8 +40,8 @@
   <div id="sentPanel" class="hidden">
     <p class="auth-note mb-lg" id="sentCopy"></p>
     <div class="field">
-      <label for="otpCode">6-digit code from that email</label>
-      <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" />
+      <label for="otpCode">8-digit code from that email</label>
+      <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="12345678" />
     </div>
     <button type="button" class="btn" id="verifyCodeBtn" style="width:100%">Confirm code</button>
     <button type="button" class="btn secondary small" id="resendBtn">Use a different email</button>
@@ -124,7 +124,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   pendingEmail = email;
   document.getElementById("otpCode").value = "";
   document.getElementById("sentCopy").textContent =
-    `Check ${email} for a 6-digit code. Enter it below to sign in.`;
+    `Check ${email} for an 8-digit code. Enter it below to sign in.`;
   showPanel("sent");
 });
 
