@@ -2,8 +2,12 @@ let currentAffiliate = null;
 let currentStore = null;
 
 async function loadProducts() {
-  currentAffiliate = await requireApprovedAffiliate();
+  currentAffiliate = await requireAffiliateForLinks();
   if (!currentAffiliate) return;
+
+  const isPending = currentAffiliate.status === "pending";
+  const pendingNotice = document.getElementById("pendingNotice");
+  if (pendingNotice) pendingNotice.hidden = !isPending;
 
   try {
     currentStore = await getPublicStore();
@@ -46,6 +50,9 @@ async function loadProducts() {
     .map((p) => {
       const existingRef = linkBySlug[p.slug];
       const price = "₹" + Number(p.price_inr || 0).toLocaleString("en-IN");
+      const btnDisabled = isPending || existingRef;
+      const btnLabel = isPending ? "Pending approval" : existingRef ? "Link ready" : "Generate link";
+      const btnOnclick = isPending ? "" : `onclick="handleGenerate('${p.slug}')"`;
       return `
       <div class="product-card" id="card-${p.slug}">
         <img class="product-thumb" src="${p.image_url || ""}" alt="" onerror="this.style.visibility='hidden'" />
@@ -55,9 +62,9 @@ async function loadProducts() {
           <button
             class="btn small"
             id="btn-${p.slug}"
-            onclick="handleGenerate('${p.slug}')"
-            ${existingRef ? "disabled" : ""}
-          >${existingRef ? "Link ready" : "Generate link"}</button>
+            ${btnOnclick}
+            ${btnDisabled ? "disabled" : ""}
+          >${btnLabel}</button>
           <div class="link-box ${existingRef ? "visible" : ""}" id="link-${p.slug}">${
             existingRef ? buildLink(p.slug, existingRef) : ""
           }</div>

@@ -102,6 +102,59 @@ async function requireApprovedAffiliate() {
   return affiliate;
 }
 
+// Phase 4c: auth guard for links.html specifically. Unlike
+// requireApprovedAffiliate(), this lets a *pending* affiliate see the page
+// (read-only product preview, no link generation) instead of bouncing them
+// to a generic status banner — so someone who just applied to promote a
+// specific product actually sees that product, not a dead end. Rejected /
+// suspended / no-application affiliates are still fully blocked, same as
+// before.
+async function requireAffiliateForLinks() {
+  const {
+    data: { session },
+  } = await affiliatesClient.auth.getSession();
+
+  if (!session) {
+    window.location.href = "auth.html";
+    return null;
+  }
+
+  const { data: affiliate, error } = await affiliatesClient
+    .from("affiliates")
+    .select("id, name, email, status, commission_rate")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  if (error || !affiliate) {
+    renderStatusBanner(
+      "No application found",
+      "You're signed in, but there's no affiliate application on this account.",
+      true,
+    );
+    return null;
+  }
+
+  if (affiliate.status === "rejected") {
+    renderStatusBanner(
+      "Application not approved",
+      "Your affiliate application wasn't approved. Reach out to the store if you think this is a mistake.",
+    );
+    return null;
+  }
+
+  if (affiliate.status === "suspended") {
+    renderStatusBanner(
+      "Account suspended",
+      "Your affiliate account is currently on hold. Reach out to the store for details.",
+    );
+    return null;
+  }
+
+  // approved or pending both fall through to the page; links.js decides
+  // what to render for each.
+  return affiliate;
+}
+
 function renderStatusBanner(title, body, showApplyLink) {
   document
     .querySelectorAll(".portal-main, .tab-bar")
@@ -187,7 +240,14 @@ async function postAuthRedirect() {
     .eq("user_id", session.user.id)
     .maybeSingle();
 
-  window.location.href = affiliate && affiliate.status === "approved" ? "links.html" : "dashboard.html";
+  // Phase 4c: a newly-applied (pending) affiliate with a promote-intent
+  // still goes to links.html, same as an approved one — they just see a
+  // read-only preview of the product they wanted, instead of getting
+  // dropped on a generic "application pending" banner with no context.
+  // Only rejected/suspended/no-application affiliates fall back to
+  // dashboard.html, where the real reason is explained.
+  const status = affiliate && affiliate.status;
+  window.location.href = status === "approved" || status === "pending" ? "links.html" : "dashboard.html";
 }
 
 // Reads + clears any pending "promote this product" intent. Called once by
