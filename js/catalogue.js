@@ -5,7 +5,7 @@ async function loadCatalogue() {
   // is auth.html for a signed-out visitor; only overridden to Dashboard
   // below when a session is actually found.
   const navLink = document.getElementById("authNavLink");
-  navLink.href = "login.html";
+  navLink.href = "auth.html";
   try {
     const {
       data: { session },

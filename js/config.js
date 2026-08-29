@@ -16,19 +16,15 @@ const STORE_SLUG = "moodstore";
 // defaults — stated explicitly here so it's not implicit/easy to lose in a
 // future edit. This is what makes a signed-in affiliate stay signed in on
 // this browser (session stored in localStorage, access token silently
-// refreshed in the background) without ever re-entering the magic link,
-// until they explicitly sign out, delete their account, or clear their
+// refreshed in the background) without ever re-entering the code, until
+// they explicitly sign out, delete their account, or clear their
 // browser's site data. No password is needed for this — that's a property
 // of session storage, not of how the person originally signed in.
 //
-// flowType: 'pkce' — NOT a default. The magic-link email points straight at
-// Supabase's own /verify endpoint; with the old implicit flow, anything
-// that opens that link before the person does (Gmail/Outlook link-scanners,
-// antivirus, chat-app link previews) silently burns the one-time token,
-// and the real click then fails with "Email link is invalid or has
-// expired" — which is exactly what was blocking signups. PKCE ties the
-// code exchange to a verifier stored only in the browser that requested
-// it, so a prefetch visit can't consume it out from under the real user.
+// flowType: 'pkce' — needed for Google OAuth's code exchange
+// (exchangeCodeForSession in auth.html). The email OTP path doesn't touch
+// this at all — verifyOtp() establishes the session directly from the
+// typed code, no redirect/exchange involved.
 const AUTH_CLIENT_OPTIONS = {
   auth: {
     persistSession: true,
@@ -88,8 +84,8 @@ async function requireApprovedAffiliate() {
 
   if (error || !affiliate) {
     renderStatusBanner(
-      "No application found",
-      "You're signed in, but there's no affiliate application on this account.",
+      "Application not finished",
+      "You're signed in, but your partner application was never completed on this account.",
       true,
     );
     return null;
@@ -156,8 +152,8 @@ async function requireAffiliateForLinks() {
 
   if (error || !affiliate) {
     renderStatusBanner(
-      "No application found",
-      "You're signed in, but there's no affiliate application on this account.",
+      "Application not finished",
+      "You're signed in, but your partner application was never completed on this account.",
       true,
     );
     return null;
@@ -191,7 +187,7 @@ function renderStatusBanner(title, body, showApplyLink) {
   const banner = document.createElement("div");
   banner.className = "status-banner";
   const applyLink = showApplyLink
-    ? '<a href="auth.html?apply=1" class="btn small" style="margin-right:8px">Apply now</a>'
+    ? '<a href="auth.html" class="btn small" style="margin-right:8px">Finish application</a>'
     : "";
   banner.innerHTML = `<strong>${title}</strong><p>${body}</p><div class="status-banner-actions">${applyLink}<button class="btn secondary small" id="signOutBtn">Sign out</button><button class="btn secondary small" id="deleteAccountBtn" style="color:#b3413a">Delete account</button></div>`;
   document.body.appendChild(banner);
@@ -277,7 +273,7 @@ async function resolvePromoteDestination(slug) {
   } = await affiliatesClient.auth.getSession();
 
   if (!session) {
-    window.location.href = "auth.html?apply=1";
+    window.location.href = "auth.html";
     return;
   }
 
@@ -328,80 +324,61 @@ function consumePromoteIntent() {
   return slug;
 }
 
-// ---------- Phase 4b: email-OTP signup/apply ----------
-// sessionStorage doesn't survive the magic-link hop when the link is opened
-// in a different tab/browser context than where it was requested (e.g. an
-// email app's in-app browser). As a fallback, the intended product slug is
-// also carried as a ?promote= query param on the redirect URL itself; this
-// restores it into sessionStorage on landing so postAuthRedirect/links.html
-// still work even when sessionStorage didn't carry over.
-function restorePromoteIntentFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const slug = params.get("promote");
-  if (slug && !sessionStorage.getItem("promoteIntentSlug")) {
-    sessionStorage.setItem("promoteIntentSlug", slug);
-  }
-}
+// ---------- Unified auth (auth.html) ----------
+// Redesigned 2026-08-30: one page handles both new and returning partners.
+// A person only ever proves their email/Google identity first; whether
+// they're new is discovered *after* that, by checking for an existing
+// affiliates row — never assumed up front. This replaces the old
+// ensureAffiliateApplication() helper, which used to create the row
+// immediately (with placeholder values) as part of verifying. Splitting
+// "check" from "create" is what lets the profile questions move to a real
+// follow-up step instead of sitting in front of the sign-in form.
 
-// Builds the emailRedirectTo URL for signInWithOtp: back to auth.html on
-// this same deployment, carrying the promote-intent slug (if any) as a
-// query param so it survives even if sessionStorage doesn't.
-// Builds the emailRedirectTo URL for signInWithOtp: back to *this same
-// page* (auth.html or login.html, whichever called it) on this
-// deployment, carrying the promote-intent slug (if any) as a query param
-// so it survives even if sessionStorage doesn't. Using the current page
-// rather than a hardcoded "auth.html" matters now that login.html exists
-// separately — a magic link sent from login.html needs to land back on
-// login.html (which knows there's no name/channel/note to collect), not
-// bounce through the apply form.
-function buildAuthRedirectUrl() {
-  const currentPage = window.location.pathname.split("/").pop() || "auth.html";
-  const url = new URL(currentPage, window.location.origin + window.location.pathname.replace(/[^/]+$/, ""));
-  const intentSlug = sessionStorage.getItem("promoteIntentSlug");
-  if (intentSlug) url.searchParams.set("promote", intentSlug);
-  return url.toString();
-}
-
-// Ensures a signed-in user has an affiliate application row. Called after
-// any successful email-OTP verification (fresh magic-link landing, or a
-// session that already existed). Creating the account IS applying, so this
-// always inserts a 'pending' row if one doesn't exist yet — never blocks on
-// a missing name (falls back to the email's local part) so a returning
-// verify-only session can't get stuck.
-// fallbackChannel/fallbackNote are only used if the value isn't already
-// available in user_metadata (see buildAuthRedirectUrl's signInWithOtp
-// `data:` payload) — same fallback pattern as name.
-async function ensureAffiliateApplication(fallbackName, fallbackChannel, fallbackNote) {
+// Looks up whether the signed-in user already has an affiliate
+// application. Returns { affiliate, error }. affiliate is null (not an
+// error) when the person is verified but has never applied before —
+// that's the normal "new partner" case, not a failure.
+async function getExistingAffiliate() {
   const {
     data: { session },
   } = await affiliatesClient.auth.getSession();
-  if (!session) return { affiliate: null, error: "no_session", isNew: false };
+  if (!session) return { affiliate: null, error: "no_session" };
 
-  const { data: existing } = await affiliatesClient
+  const { data, error } = await affiliatesClient
     .from("affiliates")
     .select("id, status")
     .eq("user_id", session.user.id)
     .maybeSingle();
 
-  if (existing) return { affiliate: existing, error: null, isNew: false };
+  if (error) return { affiliate: null, error: error.message };
+  return { affiliate: data || null, error: null };
+}
 
-  const name =
+// Creates the affiliate application row for the current session. Called
+// from auth.html's post-verification profile step, once — never from the
+// sign-in step itself. name falls back to Google profile data (when the
+// person verified via Google) or the email's local part, so the field
+// can be left blank without producing an unusable blank record.
+async function createAffiliateApplication(name, promotion_channel, application_note) {
+  const {
+    data: { session },
+  } = await affiliatesClient.auth.getSession();
+  if (!session) return { affiliate: null, error: "no_session" };
+
+  const resolvedName =
+    (name || "").trim() ||
+    session.user.user_metadata?.full_name ||
     session.user.user_metadata?.name ||
-    fallbackName ||
     (session.user.email || "").split("@")[0];
-  const promotion_channel =
-    session.user.user_metadata?.promotion_channel || fallbackChannel || null;
-  const application_note =
-    session.user.user_metadata?.application_note || fallbackNote || null;
 
   const { data: inserted, error } = await affiliatesClient
     .from("affiliates")
     .insert({
       user_id: session.user.id,
-      name,
+      name: resolvedName,
       email: session.user.email,
-      promotion_channel,
-      application_note,
+      promotion_channel: promotion_channel || null,
+      application_note: application_note || null,
     })
     .select("id, status")
     .single();
@@ -415,12 +392,36 @@ async function ensureAffiliateApplication(fallbackName, fallbackChannel, fallbac
         .select("id, status")
         .eq("user_id", session.user.id)
         .maybeSingle();
-      return { affiliate: raceRow, error: null, isNew: false };
+      return { affiliate: raceRow, error: null };
     }
-    return { affiliate: null, error: error.message, isNew: false };
+    return { affiliate: null, error: error.message };
   }
 
-  return { affiliate: inserted, error: null, isNew: true };
+  return { affiliate: inserted, error: null };
+}
+
+// Builds the emailRedirectTo URL for Google OAuth: back to auth.html on
+// this same deployment, carrying the promote-intent slug (if any) as a
+// query param so it survives the redirect round-trip even if
+// sessionStorage doesn't (e.g. a browser that partitions storage across
+// the OAuth hop).
+function buildAuthRedirectUrl() {
+  const url = new URL("auth.html", window.location.origin + window.location.pathname.replace(/[^/]+$/, ""));
+  const intentSlug = sessionStorage.getItem("promoteIntentSlug");
+  if (intentSlug) url.searchParams.set("promote", intentSlug);
+  return url.toString();
+}
+
+// sessionStorage doesn't survive the OAuth hop when Google's redirect
+// lands in a different tab/storage context. As a fallback, the intended
+// product slug is also carried as a ?promote= query param on the redirect
+// URL itself; this restores it into sessionStorage on landing.
+function restorePromoteIntentFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get("promote");
+  if (slug && !sessionStorage.getItem("promoteIntentSlug")) {
+    sessionStorage.setItem("promoteIntentSlug", slug);
+  }
 }
 
 // ---------- Phase 6: AI application screening ----------
@@ -450,4 +451,4 @@ async function screenNewApplication() {
 
 function formatInr(amount) {
   return "₹" + Number(amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-          }
+}
