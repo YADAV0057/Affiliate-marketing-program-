@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Applications — Mood Store Partners Admin</title>
+<link rel="stylesheet" href="../css/portal.css" />
+</head>
+<body>
+
+<header class="portal-header">
+  <div class="portal-brand">Mood Store <small>Partners Admin</small></div>
+</header>
+<div class="torn-divider"></div>
+
+<nav class="tab-bar">
+  <span class="tab-link active">Applications</span>
+  <button class="tab-link tab-link-btn" id="adminSignOutBtn">Sign out</button>
+</nav>
+
+<main class="portal-main">
+  <p class="section-eyebrow">Affiliate applications</p>
+  <h1 class="section-title mt-0">Review &amp; approve</h1>
+  <p class="auth-note mb-lg">
+    Low-risk applications are auto-approved by the AI screen on signup. Everything else lands here —
+    the AI's read is shown as a starting point, but every decision below is yours; you can always override it.
+  </p>
+
+  <div class="admin-tabs" id="statusTabs">
+    <button class="admin-tab active" data-status="pending">Needs review</button>
+    <button class="admin-tab" data-status="approved">Approved</button>
+    <button class="admin-tab" data-status="rejected">Rejected</button>
+    <button class="admin-tab" data-status="suspended">Suspended</button>
+    <button class="admin-tab" data-status="all">All</button>
+  </div>
+
+  <div id="appList">
+    <p class="state-msg">Loading…</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin-auth-guard.js"></script>
+<script src="js/applications.js"></script>
+
+</body>
+</html>

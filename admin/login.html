@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin sign in — Mood Store Partners</title>
+<link rel="stylesheet" href="../css/portal.css" />
+</head>
+<body>
+
+<header class="portal-header">
+  <div class="portal-brand">Mood Store <small>Partners Admin</small></div>
+</header>
+<div class="torn-divider"></div>
+
+<main class="auth-shell">
+  <p class="section-eyebrow">Admin</p>
+  <h1 class="section-title mt-0">Sign in</h1>
+
+  <div id="msg" class="form-msg"></div>
+
+  <form id="loginForm">
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" required autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" required autocomplete="current-password" />
+    </div>
+    <button type="submit" class="btn" id="loginBtn" style="width:100%">Sign in</button>
+    <p class="auth-note">Admin access is invite-only. If you don't have an account yet, one needs to be created directly in Supabase (Authentication → Users) and added to admin_users.</p>
+  </form>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script>
+if (new URLSearchParams(window.location.search).get("denied")) {
+  document.getElementById("msg").textContent = "That account doesn't have admin access.";
+  document.getElementById("msg").className = "form-msg error";
+}
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true;
+  btn.textContent = "Signing in…";
+
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const { data, error } = await affiliatesClient.auth.signInWithPassword({ email, password });
+
+  if (error || !data.session) {
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+    document.getElementById("msg").textContent = error?.message || "Could not sign in.";
+    document.getElementById("msg").className = "form-msg error";
+    return;
+  }
+
+  const { data: adminRow } = await affiliatesClient
+    .from("admin_users")
+    .select("user_id")
+    .eq("user_id", data.session.user.id)
+    .maybeSingle();
+
+  if (!adminRow) {
+    await affiliatesClient.auth.signOut();
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+    document.getElementById("msg").textContent = "That account doesn't have admin access.";
+    document.getElementById("msg").className = "form-msg error";
+    return;
+  }
+
+  window.location.href = "applications.html";
+});
+</script>
+
+</body>
+</html>
