@@ -47,7 +47,7 @@ async function loadProducts() {
       const existingRef = linkBySlug[p.slug];
       const price = "₹" + Number(p.price_inr || 0).toLocaleString("en-IN");
       return `
-      <div class="product-card">
+      <div class="product-card" id="card-${p.slug}">
         <img class="product-thumb" src="${p.image_url || ""}" alt="" onerror="this.style.visibility='hidden'" />
         <div class="product-info">
           <p class="product-name">${escapeHtml(p.name)}</p>
@@ -65,6 +65,19 @@ async function loadProducts() {
       </div>`;
     })
     .join("");
+
+  // If they arrived here via "Promote this product" on the public
+  // catalogue, scroll to and highlight that exact card instead of leaving
+  // them to find it in the grid themselves.
+  const intentSlug = consumePromoteIntent();
+  if (intentSlug) {
+    const card = document.getElementById("card-" + intentSlug);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.classList.add("product-card-highlight");
+      setTimeout(() => card.classList.remove("product-card-highlight"), 3000);
+    }
+  }
 }
 
 function buildLink(slug, refCode) {

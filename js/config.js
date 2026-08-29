@@ -1,6 +1,6 @@
 // Shared Supabase clients + helpers for the Mood Store affiliate portal.
-// Loaded on every page (index.html, dashboard.html, links.html) before the
-// page-specific script.
+// Loaded on every page (index.html = public catalogue, auth.html,
+// dashboard.html, links.html) before the page-specific script.
 
 const AFFILIATES_SUPABASE_URL = "https://yrrficomytctlpypdkpy.supabase.co";
 const AFFILIATES_SUPABASE_ANON_KEY =
@@ -36,7 +36,7 @@ async function getPublicStore() {
 }
 
 // Auth guard for dashboard.html / links.html.
-// - No session at all -> bounce to index.html.
+// - No session at all -> bounce to auth.html.
 // - Signed in but no affiliate row / not approved -> render a status
 //   banner explaining why, hide the page chrome, return null.
 // - Approved -> returns the affiliate row (id, name, email, status,
@@ -47,7 +47,7 @@ async function requireApprovedAffiliate() {
   } = await affiliatesClient.auth.getSession();
 
   if (!session) {
-    window.location.href = "index.html";
+    window.location.href = "auth.html";
     return null;
   }
 
@@ -63,6 +63,15 @@ async function requireApprovedAffiliate() {
       "You're signed in, but there's no affiliate application on this account.",
       true,
     );
+    return null;
+  }
+
+  // If they arrived here via a "Promote this product" click on the public
+  // catalogue while already approved, send them straight to the product
+  // picker instead of the dashboard.
+  const intentSlug = sessionStorage.getItem("promoteIntentSlug");
+  if (intentSlug && affiliate.status === "approved" && !location.pathname.endsWith("links.html")) {
+    window.location.href = "links.html";
     return null;
   }
 
@@ -100,7 +109,7 @@ function renderStatusBanner(title, body, showApplyLink) {
   const banner = document.createElement("div");
   banner.className = "status-banner";
   const applyLink = showApplyLink
-    ? '<a href="index.html?apply=1" class="btn small" style="margin-right:8px">Apply now</a>'
+    ? '<a href="auth.html?apply=1" class="btn small" style="margin-right:8px">Apply now</a>'
     : "";
   banner.innerHTML = `<strong>${title}</strong><p>${body}</p><div class="status-banner-actions">${applyLink}<button class="btn secondary small" id="signOutBtn">Sign out</button></div>`;
   document.body.appendChild(banner);
@@ -117,6 +126,77 @@ async function signOutAndRedirect() {
 document.addEventListener("click", (e) => {
   if (e.target.id === "signOutBtn") signOutAndRedirect();
 });
+
+// ---------- Public catalogue (index.html) ----------
+// No auth required — reads store_products directly with the anon key,
+// same trust boundary as the storefront itself. Must never be routed
+// through requireApprovedAffiliate() or any JWT-gated query.
+
+async function getPublicCatalogue() {
+  const { data, error } = await storeClient
+    .from("store_products")
+    .select("slug, name, price_inr, image_url")
+    .eq("is_active", true)
+    .order("name");
+  if (error) throw new Error("Could not load the product catalog");
+  return data || [];
+}
+
+// Called when someone clicks "Promote this product" on the public
+// catalogue. Remembers which product they meant (so links.html can land
+// them on it later) and routes them to the right next step depending on
+// whether they're already signed in and approved.
+async function resolvePromoteDestination(slug) {
+  sessionStorage.setItem("promoteIntentSlug", slug);
+
+  const {
+    data: { session },
+  } = await affiliatesClient.auth.getSession();
+
+  if (!session) {
+    window.location.href = "auth.html?apply=1";
+    return;
+  }
+
+  await postAuthRedirect();
+}
+
+// Shared "where should this signed-in person land" logic, used both by
+// resolvePromoteDestination (already signed in, clicked Promote) and by
+// auth.html after a successful sign-in / apply. Does NOT clear the stored
+// intent — links.html's own load does that once it actually uses it.
+async function postAuthRedirect() {
+  const intentSlug = sessionStorage.getItem("promoteIntentSlug");
+  if (!intentSlug) {
+    window.location.href = "dashboard.html";
+    return;
+  }
+
+  const {
+    data: { session },
+  } = await affiliatesClient.auth.getSession();
+
+  if (!session) {
+    window.location.href = "dashboard.html";
+    return;
+  }
+
+  const { data: affiliate } = await affiliatesClient
+    .from("affiliates")
+    .select("status")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  window.location.href = affiliate && affiliate.status === "approved" ? "links.html" : "dashboard.html";
+}
+
+// Reads + clears any pending "promote this product" intent. Called once by
+// links.html on load to decide which card to scroll to/highlight.
+function consumePromoteIntent() {
+  const slug = sessionStorage.getItem("promoteIntentSlug");
+  sessionStorage.removeItem("promoteIntentSlug");
+  return slug;
+}
 
 function formatInr(amount) {
   return "₹" + Number(amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
