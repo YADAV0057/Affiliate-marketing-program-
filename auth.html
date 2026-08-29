@@ -136,6 +136,40 @@ document.getElementById("resendBtn").addEventListener("click", () => {
 // an earlier visit, or (c) a first-time visitor who needs the form.
 restorePromoteIntentFromUrl();
 
+// PKCE (flowType: "pkce" in config.js) hands back an authorization code as
+// a ?code= query param, not tokens in the URL hash — supabase-js's
+// detectSessionInUrl does NOT redeem this automatically, unlike the old
+// implicit-flow hash tokens. Without this explicit exchange, GoTrue issues
+// the code successfully (visible server-side) but the browser never turns
+// it into a session, so the person silently lands back on the empty form.
+// Must run — and finish — before handleLanding() checks getSession().
+async function exchangePkceCodeIfPresent() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("code")) return;
+
+  const { error } = await affiliatesClient.auth.exchangeCodeForSession(window.location.href);
+  if (error) {
+    // Most common real-world cause: the link was opened in a different
+    // browser/app than the one that requested it (e.g. an email app's
+    // built-in viewer) — the code_verifier PKCE needs only exists in the
+    // browser that started the flow.
+    showMsg(
+      "Couldn't confirm that link: " + error.message +
+        ". Make sure you open the email link in the same browser you applied from.",
+      "error",
+    );
+  }
+
+  // Drop ?code= from the URL so a refresh/back-nav doesn't try to redeem
+  // the same (now-used) code again.
+  params.delete("code");
+  const cleanUrl =
+    window.location.pathname +
+    (params.toString() ? "?" + params.toString() : "") +
+    window.location.hash;
+  window.history.replaceState({}, document.title, cleanUrl);
+}
+
 // Guards against handleLanding() running twice concurrently. It's invoked
 // both directly (below) and via the SIGNED_IN listener, which can both end
 // up racing to proceed once a session becomes available (e.g. right after
@@ -198,7 +232,10 @@ async function handleLanding() {
 affiliatesClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") handleLanding();
 });
-handleLanding();
+(async () => {
+  await exchangePkceCodeIfPresent();
+  handleLanding();
+})();
 </script>
 
 </body>
