@@ -824,3 +824,271 @@ body.drawer-open {
     font-size: 18px;
   }
 }
+
+/* ---------- Admin: shared tabs/cards/badges (applications.html, payouts.html) ----------
+   NOTE: .admin-tab / .admin-app-* / .risk-badge were already referenced by
+   admin/js/applications.js and admin/applications.html but were never
+   actually defined here — the applications review queue has been running
+   unstyled (browser-default spacing/colors) since Phase 6 shipped. Adding
+   them now, alongside the new Phase 7 payouts styles below, since payouts
+   reuses the same tab pattern. */
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 4px 0 18px;
+  padding-bottom: 2px;
+}
+
+.admin-tab {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ink-soft);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.admin-tab.active {
+  color: #fff;
+  background: var(--plum);
+  border-color: var(--plum);
+}
+
+.admin-app-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.admin-app-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.admin-app-name {
+  margin: 0;
+  font-weight: 600;
+  color: var(--plum-dark);
+}
+
+.admin-app-email {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.admin-app-field {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.admin-app-field strong {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.admin-app-reasoning {
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+.admin-app-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.btn.reject {
+  background: var(--paper);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.btn.reject:hover:not(:disabled) {
+  background: var(--error-bg);
+}
+
+.risk-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.risk-badge.low {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.risk-badge.medium {
+  color: #8a6a1f;
+  background: #faf1dc;
+}
+
+.risk-badge.high,
+.risk-badge.unscreened {
+  color: var(--error);
+  background: var(--error-bg);
+}
+
+/* ---------- Admin: Payouts (Phase 7) ---------- */
+
+.payout-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.payout-card-info {
+  min-width: 0;
+}
+
+.payout-affiliate-name {
+  margin: 0;
+  font-weight: 600;
+  color: var(--plum-dark);
+}
+
+.payout-affiliate-meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.payout-amount {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.payout-amount .num {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--plum-dark);
+  margin-bottom: 6px;
+}
+
+.payout-history-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.payout-history-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.payout-history-top strong {
+  color: var(--plum-dark);
+}
+
+.payout-history-meta {
+  color: var(--ink-soft);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.payout-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ok-bg);
+  color: var(--ok);
+  white-space: nowrap;
+}
+
+.export-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+/* "Record payout" confirmation modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(43, 36, 28, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-card {
+  background: var(--paper);
+  border-radius: 14px;
+  padding: 22px 20px;
+  max-width: 380px;
+  width: 100%;
+}
+
+.modal-card h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: var(--plum-dark);
+}
+
+.modal-card .modal-sub {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0 0 16px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.modal-actions .btn {
+  flex: 1;
+}
+
+@media (max-width: 420px) {
+  .payout-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .payout-amount {
+    text-align: left;
+  }
+}
