@@ -289,11 +289,14 @@ function buildAuthRedirectUrl() {
 // always inserts a 'pending' row if one doesn't exist yet — never blocks on
 // a missing name (falls back to the email's local part) so a returning
 // verify-only session can't get stuck.
-async function ensureAffiliateApplication(fallbackName) {
+// fallbackChannel/fallbackNote are only used if the value isn't already
+// available in user_metadata (see buildAuthRedirectUrl's signInWithOtp
+// `data:` payload) — same fallback pattern as name.
+async function ensureAffiliateApplication(fallbackName, fallbackChannel, fallbackNote) {
   const {
     data: { session },
   } = await affiliatesClient.auth.getSession();
-  if (!session) return { affiliate: null, error: "no_session" };
+  if (!session) return { affiliate: null, error: "no_session", isNew: false };
 
   const { data: existing } = await affiliatesClient
     .from("affiliates")
@@ -301,16 +304,26 @@ async function ensureAffiliateApplication(fallbackName) {
     .eq("user_id", session.user.id)
     .maybeSingle();
 
-  if (existing) return { affiliate: existing, error: null };
+  if (existing) return { affiliate: existing, error: null, isNew: false };
 
   const name =
     session.user.user_metadata?.name ||
     fallbackName ||
     (session.user.email || "").split("@")[0];
+  const promotion_channel =
+    session.user.user_metadata?.promotion_channel || fallbackChannel || null;
+  const application_note =
+    session.user.user_metadata?.application_note || fallbackNote || null;
 
   const { data: inserted, error } = await affiliatesClient
     .from("affiliates")
-    .insert({ user_id: session.user.id, name, email: session.user.email })
+    .insert({
+      user_id: session.user.id,
+      name,
+      email: session.user.email,
+      promotion_channel,
+      application_note,
+    })
     .select("id, status")
     .single();
 
@@ -323,12 +336,37 @@ async function ensureAffiliateApplication(fallbackName) {
         .select("id, status")
         .eq("user_id", session.user.id)
         .maybeSingle();
-      return { affiliate: raceRow, error: null };
+      return { affiliate: raceRow, error: null, isNew: false };
     }
-    return { affiliate: null, error: error.message };
+    return { affiliate: null, error: error.message, isNew: false };
   }
 
-  return { affiliate: inserted, error: null };
+  return { affiliate: inserted, error: null, isNew: true };
+}
+
+// ---------- Phase 6: AI application screening ----------
+// Fires the screen-affiliate-application edge function for a just-created
+// application and waits for the result, so the very next redirect decision
+// (postAuthRedirect) already reflects an auto-approval if one happened,
+// instead of the affiliate seeing "pending" for a moment and then having
+// to reload. Never throws — a screening failure just means the
+// application stays in the normal manual-review queue, same as if this
+// call didn't exist.
+async function screenNewApplication() {
+  try {
+    const { data, error } = await affiliatesClient.functions.invoke(
+      "screen-affiliate-application",
+      { body: {} },
+    );
+    if (error) {
+      console.error("Application screening failed:", error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error("Application screening failed:", err);
+    return null;
+  }
 }
 
 function formatInr(amount) {
