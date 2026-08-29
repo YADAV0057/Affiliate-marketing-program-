@@ -117,6 +117,31 @@ document.getElementById("resendBtn").addEventListener("click", () => {
 
 restorePromoteIntentFromUrl();
 
+// See auth.html for the full explanation: PKCE returns a ?code= param that
+// supabase-js does NOT redeem automatically, unlike the old implicit-flow
+// hash tokens. Must run — and finish — before handleLanding() checks
+// getSession().
+async function exchangePkceCodeIfPresent() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("code")) return;
+
+  const { error } = await affiliatesClient.auth.exchangeCodeForSession(window.location.href);
+  if (error) {
+    showMsg(
+      "Couldn't confirm that link: " + error.message +
+        ". Make sure you open the email link in the same browser you signed in from.",
+      "error",
+    );
+  }
+
+  params.delete("code");
+  const cleanUrl =
+    window.location.pathname +
+    (params.toString() ? "?" + params.toString() : "") +
+    window.location.hash;
+  window.history.replaceState({}, document.title, cleanUrl);
+}
+
 let landingInFlight = false;
 
 async function handleLanding() {
@@ -161,7 +186,10 @@ async function handleLanding() {
 affiliatesClient.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") handleLanding();
 });
-handleLanding();
+(async () => {
+  await exchangePkceCodeIfPresent();
+  handleLanding();
+})();
 </script>
 
 </body>
