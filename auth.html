@@ -126,12 +126,27 @@ document.getElementById("resendBtn").addEventListener("click", () => {
 // an earlier visit, or (c) a first-time visitor who needs the form.
 restorePromoteIntentFromUrl();
 
+// Guards against handleLanding() running twice concurrently. It's invoked
+// both directly (below) and via the SIGNED_IN listener, which can both end
+// up racing to proceed once a session becomes available (e.g. right after
+// a magic-link redirect finishes parsing). Without this guard, the second
+// invocation can see the affiliate row the first one just inserted, treat
+// it as "isNew: false", and jump straight to postAuthRedirect() — which
+// navigates the page away and cancels the first invocation's in-flight
+// screenNewApplication() request mid-flight (after its CORS preflight but
+// before the real POST completes), so AI screening silently never runs.
+let landingInFlight = false;
+
 async function handleLanding() {
+  if (landingInFlight) return;
+  landingInFlight = true;
+
   const {
     data: { session },
   } = await affiliatesClient.auth.getSession();
 
   if (!session) {
+    landingInFlight = false;
     showPanel("form");
     return;
   }
@@ -143,6 +158,7 @@ async function handleLanding() {
     document.getElementById("reqNote").value.trim(),
   );
   if (error) {
+    landingInFlight = false;
     showPanel("form");
     showMsg("Signed in, but couldn't file your application: " + error, "error");
     return;
