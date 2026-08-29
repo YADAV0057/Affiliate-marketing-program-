@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Get links — Mood Store Partners</title>
+<link rel="stylesheet" href="css/portal.css" />
+</head>
+<body>
+
+<header class="portal-header">
+  <div class="portal-brand">Mood Store <small>Partners</small></div>
+</header>
+<div class="torn-divider"></div>
+
+<nav class="tab-bar">
+  <a href="dashboard.html" class="tab-link">Dashboard</a>
+  <a href="links.html" class="tab-link active">Get links</a>
+  <button class="tab-link tab-link-btn" id="signOutBtn">Sign out</button>
+</nav>
+
+<main class="portal-main">
+  <p class="section-eyebrow">Product picker</p>
+  <h1 class="section-title mt-0">Generate a tracked link</h1>
+  <p class="auth-note mb-lg">Pick a product below to get your unique referral link. Clicks and sales through this link are credited to you automatically.</p>
+
+  <div id="productList" class="product-grid">
+    <p class="state-msg">Loading products…</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/links.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — Mood Store Partners</title>
+<link rel="stylesheet" href="css/portal.css" />
+</head>
+<body>
+
+<header class="portal-header">
+  <div class="portal-brand">Mood Store <small>Partners</small></div>
+</header>
+<div class="torn-divider"></div>
+
+<nav class="tab-bar">
+  <a href="dashboard.html" class="tab-link active">Dashboard</a>
+  <a href="links.html" class="tab-link">Get links</a>
+  <button class="tab-link tab-link-btn" id="signOutBtn">Sign out</button>
+</nav>
+
+<main class="portal-main">
+  <p class="section-eyebrow" id="welcomeLine">Loading…</p>
+  <h1 class="section-title mt-0">Your earnings</h1>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-label">Approved earnings</span>
+      <span class="stat-value" id="totalEarned">₹0</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Pending earnings</span>
+      <span class="stat-value" id="pendingEarned">₹0</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Units sold</span>
+      <span class="stat-value" id="unitsSold">0</span>
+    </div>
+  </div>
+
+  <h2 class="section-subtitle">By product</h2>
+  <div id="productBreakdown">
+    <p class="state-msg">Loading your sales…</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/dashboard.js"></script>
+
+</body>
+</html>
