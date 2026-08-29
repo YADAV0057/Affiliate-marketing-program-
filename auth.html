@@ -46,7 +46,7 @@
       <textarea id="reqNote" required rows="3" placeholder="e.g. instagram.com/yourhandle — I post outfit reels and would link products in my bio/stories"></textarea>
     </div>
     <button type="submit" class="btn" id="requestBtn" style="width:100%">Continue with email</button>
-    <p class="auth-note">No password needed. We'll email you a 6-digit code — enter it below and your application is filed in one step. You'll be able to generate links and see earnings once it's approved.</p>
+    <p class="auth-note">No password needed. We'll email you an 8-digit code — enter it below and your application is filed in one step. You'll be able to generate links and see earnings once it's approved.</p>
     <p class="auth-note">Already applied? <a href="login.html">Sign in</a> instead — no need to fill this out again.</p>
   </form>
 
@@ -65,8 +65,8 @@
   <div id="sentPanel" class="hidden">
     <p class="auth-note mb-lg" id="sentCopy"></p>
     <div class="field">
-      <label for="otpCode">6-digit code from that email</label>
-      <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" />
+      <label for="otpCode">8-digit code from that email</label>
+      <input type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="12345678" />
     </div>
     <button type="button" class="btn" id="verifyCodeBtn" style="width:100%">Confirm code</button>
     <button type="button" class="btn secondary small" id="resendBtn">Use a different email</button>
@@ -139,7 +139,7 @@ document.getElementById("requestForm").addEventListener("submit", async (e) => {
   pendingEmail = email;
   document.getElementById("otpCode").value = "";
   document.getElementById("sentCopy").textContent =
-    `Check ${email} for a 6-digit code. Enter it below to confirm and continue.`;
+    `Check ${email} for an 8-digit code. Enter it below to confirm and continue.`;
   showPanel("sent");
 });
 
