@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Conversions — Mood Store Partners Admin</title>
+<link rel="stylesheet" href="../css/portal.css" />
+</head>
+<body>
+
+<header class="portal-header">
+  <div class="portal-brand">Mood Store <small>Partners Admin</small></div>
+</header>
+<div class="torn-divider"></div>
+
+<nav class="tab-bar">
+  <a class="tab-link" href="applications.html">Applications</a>
+  <a class="tab-link" href="payouts.html">Payouts</a>
+  <span class="tab-link active">Conversions</span>
+  <button class="tab-link tab-link-btn" id="adminSignOutBtn">Sign out</button>
+</nav>
+
+<main class="portal-main">
+  <p class="section-eyebrow">Phase 9</p>
+  <h1 class="section-title mt-0">Conversions &amp; fraud review</h1>
+  <p class="auth-note mb-lg">
+    Self-referrals are auto-rejected on arrival — shown here for audit, not action. IP-cluster flags are a
+    review signal only (shared IPs happen legitimately — NAT, offices, campus wifi), so those stay pending
+    until you approve or reject them by hand.
+  </p>
+
+  <div class="admin-tabs" id="convTabs">
+    <button class="admin-tab active" data-view="flagged">Flagged</button>
+    <button class="admin-tab" data-view="all">All conversions</button>
+  </div>
+
+  <div id="convList">
+    <p class="state-msg">Loading…</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin-auth-guard.js"></script>
+<script src="js/conversions.js"></script>
+
+</body>
+</html>
