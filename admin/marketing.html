@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Marketing Bot — Mood Store Partners Admin</title>
+<link rel="stylesheet" href="../css/portal.css" />
+</head>
+<body>
+
+<header class="portal-header">
+  <div class="portal-brand">Mood Store <small>Partners Admin</small></div>
+</header>
+<div class="torn-divider"></div>
+
+<nav class="tab-bar">
+  <a class="tab-link" href="applications.html">Applications</a>
+  <a class="tab-link" href="payouts.html">Payouts</a>
+  <a class="tab-link" href="conversions.html">Conversions</a>
+  <span class="tab-link active">Marketing</span>
+  <button class="tab-link tab-link-btn" id="adminSignOutBtn">Sign out</button>
+</nav>
+
+<main class="portal-main">
+  <p class="section-eyebrow">Creator Outreach &amp; Marketing Bot</p>
+  <h1 class="section-title mt-0">Marketing content</h1>
+  <p class="auth-note mb-lg">
+    Captions are generated automatically from the live product catalogue. Nothing goes out to Facebook or
+    Instagram until you queue it here — or until the kill-switch below is off and the bot is running unattended.
+  </p>
+
+  <div class="kill-switch-row" id="killSwitchRow">
+    <span id="killSwitchLabel" class="state-msg">Loading kill-switch status…</span>
+    <button class="btn small" id="killSwitchToggle" disabled>Loading…</button>
+  </div>
+
+  <div class="export-btn-row" id="generateRow">
+    <button class="btn small secondary" id="generateBtn">Generate content now</button>
+  </div>
+
+  <div class="admin-tabs" id="marketingTabs">
+    <button class="admin-tab active" data-status="draft">Draft</button>
+    <button class="admin-tab" data-status="queued">Queued</button>
+    <button class="admin-tab" data-status="posted">Posted</button>
+    <button class="admin-tab" data-status="failed">Failed</button>
+    <button class="admin-tab" data-status="all">All</button>
+  </div>
+
+  <div id="marketingList">
+    <p class="state-msg">Loading…</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin-auth-guard.js"></script>
+<script src="js/marketing.js"></script>
+
+</body>
+</html>
