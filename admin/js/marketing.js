@@ -93,7 +93,7 @@ async function loadContent() {
 
   let query = affiliatesClient
     .from("marketing_content")
-    .select("id, product_slug, platform, caption, hashtags, status, platform_post_id, generated_at, posted_at")
+    .select("id, product_slug, platform, caption, hashtags, image_url, status, platform_post_id, generated_at, posted_at")
     .order("generated_at", { ascending: false });
 
   if (currentStatus !== "all") query = query.eq("status", currentStatus);
@@ -134,12 +134,19 @@ function renderCard(row) {
   }
   actions.push(`<button class="btn small reject" onclick="deleteContent('${row.id}')">Delete</button>`);
 
+  const image = row.image_url
+    ? `<img src="${escapeHtml(row.image_url)}" alt="${escapeHtml(row.product_slug)}" class="admin-app-thumb" loading="lazy" />`
+    : `<div class="admin-app-thumb admin-app-thumb-empty">No image</div>`;
+
   return `
     <div class="admin-app-card" id="mk-${row.id}">
       <div class="admin-app-top">
-        <div>
-          <p class="admin-app-name">${escapeHtml(row.product_slug)} · ${escapeHtml(row.platform)}</p>
-          <p class="admin-app-email">Generated ${when}${row.posted_at ? " · posted " + new Date(row.posted_at).toLocaleDateString() : ""}</p>
+        <div class="admin-app-top-left">
+          ${image}
+          <div>
+            <p class="admin-app-name">${escapeHtml(row.product_slug)} · ${escapeHtml(row.platform)}</p>
+            <p class="admin-app-email">Generated ${when}${row.posted_at ? " · posted " + new Date(row.posted_at).toLocaleDateString() : ""}</p>
+          </div>
         </div>
         ${statusBadge}
       </div>
@@ -211,7 +218,23 @@ async function generateContent() {
 
     if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`);
 
-    alert(`Generated content for ${result.products_processed ?? 0} product(s). Check the Draft tab.`);
+    const generated = result.generated ?? 0;
+    const failedCount = result.failed ?? 0;
+    const skipped = result.skipped ?? 0;
+
+    if (generated > 0) {
+      alert(
+        `Generated ${generated} new item(s)` +
+          (skipped ? `, ${skipped} already existed` : "") +
+          (failedCount ? `, ${failedCount} failed — check Supabase logs` : "") +
+          `. Check the Draft tab.`
+      );
+    } else if (failedCount > 0) {
+      alert(`Generation failed for all ${failedCount} item(s) — check Supabase logs for generate-marketing-content.`);
+    } else {
+      alert(`Nothing to generate — all content already exists. Check the Draft tab.`);
+    }
+
     currentStatus = "draft";
     document.querySelectorAll("#marketingTabs .admin-tab").forEach((t) => t.classList.remove("active"));
     document.querySelector('#marketingTabs .admin-tab[data-status="draft"]').classList.add("active");
